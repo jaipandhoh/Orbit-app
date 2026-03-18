@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Request Media or Campaign - Orbit</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 40px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 700px;
+            width: 100%;
+            padding: 40px;
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo h1 {
+            font-size: 32px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+        }
+
+        .logo p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        label .required {
+            color: #e74c3c;
+        }
+
+        input[type="text"],
+        input[type="email"],
+        input[type="datetime-local"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        input:focus,
+        textarea:focus,
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        @media (max-width: 640px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .submit-btn:active {
+            transform: translateY(0);
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .message {
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            display: none;
+        }
+
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .message.show {
+            display: block;
+        }
+
+        .content-type-help {
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.8s linear infinite;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">
+            <h1>Orbit</h1>
+            <p>Request Media or Campaign Support</p>
+        </div>
+
+        <div id="message" class="message"></div>
+
+        <form id="requestForm">
+            <!-- Requester Info -->
+            <div class="form-group">
+                <label for="requester_name">Your Name <span class="required">*</span></label>
+                <input type="text" id="requester_name" name="requester_name" required>
+            </div>
+
+            <div class="form-group">
+                <label for="requester_email">Your Email <span class="required">*</span></label>
+                <input type="email" id="requester_email" name="requester_email" required>
+            </div>
+
+            <div class="form-group">
+                <label for="department_name">Department <span class="required">*</span></label>
+                <input type="text" id="department_name" name="department_name" placeholder="e.g., Marketing, Sales, Product" required>
+            </div>
+
+            <!-- Request Details -->
+            <div class="form-group">
+                <label for="title">Request Title <span class="required">*</span></label>
+                <input type="text" id="title" name="title" placeholder="e.g., Spring Product Launch Announcement" required>
+            </div>
+
+            <div class="form-group">
+                <label for="description">Description</label>
+                <textarea id="description" name="description" placeholder="Describe what you need..."></textarea>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="platform">Platform <span class="required">*</span></label>
+                    <select id="platform" name="platform" required>
+                        <option value="">Select platform...</option>
+                        <option value="instagram">Instagram</option>
+                        <option value="tiktok">TikTok</option>
+                        <option value="email">Email</option>
+                        <option value="website">Website</option>
+                        <option value="flyer">Flyer/Print</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="content_type">Content Type <span class="required">*</span></label>
+                    <select id="content_type" name="content_type" required>
+                        <option value="">Select type...</option>
+                    </select>
+                    <div class="content-type-help" id="contentTypeHelp"></div>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="priority">Priority</label>
+                    <select id="priority" name="priority">
+                        <option value="normal">Normal</option>
+                        <option value="low">Low</option>
+                        <option value="high">High</option>
+                        <option value="urgent">Urgent</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="deadline_at">Deadline (Optional)</label>
+                    <input type="datetime-local" id="deadline_at" name="deadline_at">
+                </div>
+            </div>
+
+            <button type="submit" class="submit-btn" id="submitBtn">
+                Submit Request
+            </button>
+        </form>
+    </div>
+
+    <script>
+        const contentTypes = {
+            instagram: [
+                { value: 'feed_post', label: 'Feed Post' },
+                { value: 'reel', label: 'Reel' },
+                { value: 'story', label: 'Story' },
+                { value: 'carousel', label: 'Carousel' }
+            ],
+            tiktok: [
+                { value: 'reel', label: 'Reel' }
+            ],
+            email: [
+                { value: 'email_blast', label: 'Email Blast' }
+            ],
+            website: [
+                { value: 'web_update', label: 'Web Update' }
+            ],
+            flyer: [
+                { value: 'print', label: 'Print' }
+            ],
+            other: [
+                { value: 'other', label: 'Other' }
+            ]
+        };
+
+        const platform = document.getElementById('platform');
+        const contentType = document.getElementById('content_type');
+        const contentTypeHelp = document.getElementById('contentTypeHelp');
+
+        platform.addEventListener('change', function() {
+            const selectedPlatform = this.value;
+            contentType.innerHTML = '<option value="">Select type...</option>';
+            
+            if (contentTypes[selectedPlatform]) {
+                contentTypes[selectedPlatform].forEach(type => {
+                    const option = document.createElement('option');
+                    option.value = type.value;
+                    option.textContent = type.label;
+                    contentType.appendChild(option);
+                });
+            }
+
+            // Update help text
+            if (selectedPlatform === 'instagram') {
+                contentTypeHelp.textContent = 'Choose the type of Instagram content you need';
+            } else if (selectedPlatform === 'tiktok') {
+                contentTypeHelp.textContent = 'TikTok content (Reels)';
+            } else {
+                contentTypeHelp.textContent = '';
+            }
+        });
+
+        const form = document.getElementById('requestForm');
+        const message = document.getElementById('message');
+        const submitBtn = document.getElementById('submitBtn');
+
+        function showMessage(text, type) {
+            message.textContent = text;
+            message.className = `message ${type} show`;
+            setTimeout(() => {
+                message.classList.remove('show');
+            }, 5000);
+        }
+
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner"></span>Submitting...';
+
+            const formData = new FormData(form);
+            const data = {
+                title: formData.get('title'),
+                description: formData.get('description'),
+                platform: formData.get('platform'),
+                content_type: formData.get('content_type'),
+                priority: formData.get('priority') || 'normal',
+                deadline_at: formData.get('deadline_at') || null,
+                requester_name: formData.get('requester_name'),
+                requester_email: formData.get('requester_email'),
+                department_name: formData.get('department_name')
+            };
+
+            // Convert deadline to ISO string if provided
+            if (data.deadline_at) {
+                data.deadline_at = new Date(data.deadline_at).toISOString();
+            }
+
+            try {
+                const response = await fetch('/api/requests/public', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    showMessage('Request submitted successfully! We\'ll review it and get back to you soon.', 'success');
+                    form.reset();
+                    contentType.innerHTML = '<option value="">Select type...</option>';
+                    contentTypeHelp.textContent = '';
+                } else {
+                    showMessage(result.error || 'Failed to submit request. Please try again.', 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showMessage('Network error. Please check your connection and try again.', 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Submit Request';
+            }
+        });
+    </script>
+</body>
+</html>
