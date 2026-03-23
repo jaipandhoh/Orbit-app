@@ -4,13 +4,16 @@ import App from './App.jsx';
 import './index.css';
 import { ToastProvider } from './ToastProvider.jsx';
 import { Analytics } from '@vercel/analytics/react';
+import { AuthProvider } from './context/AuthContext';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <ToastProvider>
-      <App />
-      <Analytics />
-    </ToastProvider>
+    <AuthProvider>
+      <ToastProvider>
+        <App />
+        <Analytics />
+      </ToastProvider>
+    </AuthProvider>
   </React.StrictMode>,
 );
 

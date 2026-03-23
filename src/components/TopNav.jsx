@@ -2,6 +2,7 @@ import React from 'react';
 import { LayoutDashboard, Megaphone, Inbox, Trello, Calendar, Users, Sun, Moon, Settings, ListTodo } from 'lucide-react';
 import { VIEWS } from '../routes.js';
 import OrbitLogo from '../OrbitLogo';
+import WorkspaceSwitcher from './WorkspaceSwitcher';
 
 const NAV_LINKS = [
   { view: VIEWS.DASHBOARD, label: 'Dashboard', icon: LayoutDashboard },
@@ -26,6 +27,10 @@ const TopNav = ({ currentView, onNavigate, isDarkMode, onToggleTheme, onShowSett
           Orbit
         </span>
       </button>
+
+      <div className="mr-6 border-l border-gray-200 dark:border-border-dark pl-6">
+        <WorkspaceSwitcher />
+      </div>
 
       {/* Nav links */}
       <nav className="flex items-center gap-1 flex-1">

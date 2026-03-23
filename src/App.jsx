@@ -24,6 +24,8 @@ import ApprovalReviewModal from './ApprovalReviewModal.jsx';
 import PublicRequestView from './PublicRequestView.jsx';
 import MasterTodoView from './MasterTodoView.jsx';
 import { VIEWS, MODALS, DEFAULT_VIEW } from './routes.js';
+import { useAuth } from './context/AuthContext';
+import Login from './pages/Login';
 
 // Gemini API Key (set in Vite env as VITE_GEMINI_API_KEY)
 const GEMINI_API_KEY = import.meta.env?.VITE_GEMINI_API_KEY || '';
@@ -57,7 +59,7 @@ async function callGemini(prompt, notify) {
   }
 }
 
-const App = () => {
+const AppContent = () => {
   const { toast } = useToast();
   const [currentView, setCurrentView] = useState(window.location.pathname === '/request' ? VIEWS.PUBLIC_REQUEST : DEFAULT_VIEW);
   const [activeModal, setActiveModal] = useState(null);
@@ -76,6 +78,8 @@ const App = () => {
   const [contacts, setContacts] = useState([]);
   const [requests, setRequests] = useState([]);
   const [approvalRules, setApprovalRules] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [approvals, setApprovals] = useState([]);
@@ -196,7 +200,7 @@ const App = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [campaignsRes, postsRes, deliverablesRes, contactsRes, requestsRes, approvalRulesRes] = await Promise.all([
+      const [campaignsRes, postsRes, deliverablesRes, contactsRes, requestsRes, approvalRulesRes, usersRes, departmentsRes] = await Promise.all([
         fetch(`${API_BASE}/campaigns`).then((r) => {
           if (!r.ok) throw new Error(`Campaigns API error: ${r.status}`);
           return r.json();
@@ -239,6 +243,8 @@ const App = () => {
           console.error('Error fetching approval rules:', err);
           return [];
         }),
+        fetch(`${API_BASE}/users`).then((r) => r.ok ? r.json() : []).catch(() => []),
+        fetch(`${API_BASE}/departments`).then((r) => r.ok ? r.json() : []).catch(() => []),
       ]);
 
       setCampaigns(campaignsRes || []);
@@ -247,6 +253,8 @@ const App = () => {
       setContacts(contactsRes || []);
       setRequests(requestsRes || []);
       setApprovalRules(approvalRulesRes || []);
+      setUsers(usersRes || []);
+      setDepartments(departmentsRes || []);
 
       const approvalsData = await fetch(`${API_BASE}/approvals/pending`).then(r => r.ok ? r.json() : []).catch(() => []);
       setApprovals(approvalsData || []);
@@ -689,10 +697,10 @@ const App = () => {
     try {
       const res = await fetch(`${API_BASE}/requests/${requestId}/approve`, { method: 'POST' });
       if (!res.ok) throw new Error('Failed to approve request');
-      await fetchData();
       const updated = await res.json().catch(() => null);
+      await fetchData();
       if (selectedRequest?.request_id === requestId) {
-        setSelectedRequest((prev) => ({ ...prev, status: 'approved' }));
+        setSelectedRequest((prev) => ({ ...prev, ...(updated || {}), status: 'approved' }));
       }
       toast('Request approved.', { type: 'success' });
     } catch (err) {
@@ -842,6 +850,7 @@ const App = () => {
         {currentView === VIEWS.INBOX && (
           <InboxView
             requests={requests}
+            users={users}
             onSelectRequest={(request) => {
               setSelectedRequest(request);
               navigate(VIEWS.REQUEST_DETAIL);
@@ -987,29 +996,19 @@ const App = () => {
         {currentView === VIEWS.REQUEST_DETAIL && selectedRequest && (
           <RequestDetail
             request={selectedRequest}
+            users={users}
             onBack={() => {
               setSelectedRequest(null);
               navigate(VIEWS.INBOX);
             }}
-            onEdit={() => openModal(MODALS.REQUEST_FORM)}
             onApproveRequest={handleApproveRequest}
             onRejectRequest={handleRejectRequest}
             onUpdate={async (requestId, updates) => {
-              try {
-                const response = await fetch(`${API_BASE}/requests/${requestId}`, {
-                  method: 'PATCH',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(updates),
-                });
-                if (!response.ok) throw new Error('Failed to update request');
-                await fetchData();
-                const updated = requests.find(r => r.request_id === requestId);
-                if (updated) setSelectedRequest({ ...updated, ...updates });
-                toast('Request updated.', { type: 'success' });
-              } catch (error) {
-                console.error('Error updating request:', error);
-                toast('Failed to update request.', { type: 'error' });
-              }
+              await fetchData();
+              // Refresh selectedRequest from re-fetched data
+              const refreshed = requests.find(r => r.request_id === requestId);
+              if (refreshed) setSelectedRequest({ ...refreshed, ...updates });
+              toast('Request updated.', { type: 'success' });
             }}
           />
         )}
@@ -1061,6 +1060,9 @@ const App = () => {
       {activeModal === MODALS.REQUEST_FORM && (
         <RequestFormModal
           request={selectedRequest}
+          campaigns={campaigns}
+          users={users}
+          departments={departments}
           onClose={() => {
             closeModal();
             setSelectedRequest(null);
@@ -1080,10 +1082,10 @@ const App = () => {
               await fetchData();
               closeModal();
               setSelectedRequest(null);
-              alert(selectedRequest ? 'Request updated successfully!' : 'Request created successfully!');
+              toast(selectedRequest ? 'Request updated.' : 'Request created.', { type: 'success' });
             } catch (error) {
               console.error('Error saving request:', error);
-              alert('Failed to save request. Please try again.');
+              toast('Failed to save request. Please try again.', { type: 'error' });
             }
           }}
         />
@@ -1115,6 +1117,13 @@ const App = () => {
       )}
     </div>
   );
+};
+
+const App = () => {
+  const { user, loading } = useAuth();
+  if (loading) return <div className="min-h-screen bg-gray-950" />;
+  if (!user) return <Login />;
+  return <AppContent />;
 };
 
 export default App;

@@ -6,6 +6,7 @@ import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 dotenv.config();
 import cors from "cors";
+import workspacesRouter from "./routes/workspaces.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -40,7 +41,7 @@ const toMysqlDateOnly = (value) => {
 };
 
 async function ensureSchema() {
-  // Non-destructive: creates table if missing.
+  // Non-destructive: creates tables if missing (PostgreSQL-compatible syntax).
   await pool.query(`
     CREATE TABLE IF NOT EXISTS campaign_plans (
       campaign_id INT PRIMARY KEY,
@@ -48,28 +49,28 @@ async function ensureSchema() {
       colors_json JSON NULL,
       plan_json JSON NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (campaign_id) REFERENCES campaigns(campaign_id) ON DELETE CASCADE
     )
   `);
   await pool.query(`
     CREATE TABLE IF NOT EXISTS approvals (
-      id INT AUTO_INCREMENT PRIMARY KEY,
+      id SERIAL PRIMARY KEY,
       post_id INT NULL,
       request_id INT NULL,
-      status ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+      status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','rejected')),
       feedback TEXT NULL,
       submitted_by VARCHAR(100) NULL,
       reviewed_by VARCHAR(100) NULL,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (post_id) REFERENCES posts(post_id) ON DELETE CASCADE,
       FOREIGN KEY (request_id) REFERENCES requests(request_id) ON DELETE CASCADE
     )
   `);
   await pool.query(`
     CREATE TABLE IF NOT EXISTS approval_comments (
-      id INT AUTO_INCREMENT PRIMARY KEY,
+      id SERIAL PRIMARY KEY,
       request_id INT NOT NULL,
       body TEXT NOT NULL,
       author_name VARCHAR(255) NULL,
@@ -82,7 +83,7 @@ async function ensureSchema() {
   // Migrate: add source column to requests (internal vs external submissions)
   await pool.query(`ALTER TABLE requests ADD COLUMN IF NOT EXISTS source VARCHAR(32) NOT NULL DEFAULT 'internal'`).catch(() => {});
   // Migrate: add updated_at column to requests
-  await pool.query(`ALTER TABLE requests ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP`).catch(() => {});
+  await pool.query(`ALTER TABLE requests ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`).catch(() => {});
   // Migrate: add author_name column to approval_comments
   await pool.query(`ALTER TABLE approval_comments ADD COLUMN IF NOT EXISTS author_name VARCHAR(255) NULL`).catch(() => {});
 }
@@ -102,6 +103,9 @@ function extractJsonFromText(text) {
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Workspace routes (auth required — see middleware/authMiddleware.js)
+app.use('/api/workspaces', workspacesRouter);
 
 // Serve static files from dist (Vite build output)
 app.use(express.static(path.join(__dirname, 'dist')));
@@ -1293,12 +1297,8 @@ app.post('/api/requests/:id/submit-for-approval', async (req, res) => {
       return res.status(404).json({ error: 'Request not found' });
     }
 
-    const [updatedRequest] = await pool.execute(
-      'SELECT * FROM requests WHERE request_id = ?',
-      [req.params.id]
-    );
-
-    res.json(updatedRequest[0]);
+    const row = await fetchRequestWithJoins(req.params.id);
+    res.json(row);
   } catch (error) {
     console.error('Error submitting request:', error);
     res.status(500).json({ error: error.message });
@@ -1311,7 +1311,7 @@ app.post('/api/requests/:id/submit-for-approval', async (req, res) => {
 app.get('/api/approval-rules', async (req, res) => {
   try {
     const [rows] = await pool.execute(
-      'SELECT * FROM approval_rules WHERE is_active = 1 ORDER BY priority_order ASC'
+      'SELECT * FROM approval_rules WHERE is_active = true ORDER BY priority_order ASC'
     );
     res.json(rows);
   } catch (error) {
@@ -1441,7 +1441,7 @@ app.delete('/api/approval-rules/:id', async (req, res) => {
 app.get('/api/onboarding-templates', async (req, res) => {
   try {
     const [rows] = await pool.execute(
-      'SELECT * FROM onboarding_templates WHERE is_active = 1'
+      'SELECT * FROM onboarding_templates WHERE is_active = true'
     );
     res.json(rows);
   } catch (error) {
