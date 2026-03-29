@@ -1887,17 +1887,24 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));
 });
 
-// Start server
-(async () => {
-  try {
-    await ensureSchema();
-    app.listen(PORT, () => {
-      console.log(`🚀 Server running on http://localhost:${PORT}`);
-      console.log(`📊 API endpoints available at http://localhost:${PORT}/api`);
-      console.log(`🌐 Frontend served from http://localhost:${PORT}/`);
-    });
-  } catch (err) {
-    console.error("Failed to start server (schema check failed):", err);
-    process.exit(1);
-  }
-})();
+// For Vercel, we need to export the app instead of unconditionally listening
+if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+  (async () => {
+    try {
+      await ensureSchema();
+      app.listen(PORT, () => {
+        console.log(`🚀 Server running on http://localhost:${PORT}`);
+        console.log(`📊 API endpoints available at http://localhost:${PORT}/api`);
+        console.log(`🌐 Frontend served from http://localhost:${PORT}/`);
+      });
+    } catch (err) {
+      console.error("Failed to start server (schema check failed):", err);
+      process.exit(1);
+    }
+  })();
+} else {
+  // In Vercel, just ensure schema asynchronously without starting a listener
+  ensureSchema().catch(err => console.error("Schema check failed in serverless mode:", err));
+}
+
+export default app;
