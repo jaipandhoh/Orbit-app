@@ -86,6 +86,8 @@ async function ensureSchema() {
   await pool.query(`ALTER TABLE requests ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`).catch(() => {});
   // Migrate: add author_name column to approval_comments
   await pool.query(`ALTER TABLE approval_comments ADD COLUMN IF NOT EXISTS author_name VARCHAR(255) NULL`).catch(() => {});
+  // Migrate: add workspace_id column to requests
+  await pool.query(`ALTER TABLE requests ADD COLUMN IF NOT EXISTS workspace_id UUID REFERENCES workspaces(id) ON DELETE CASCADE`).catch((e) => console.log('workspace_id migration error:', e));
 }
 
 function extractJsonFromText(text) {
@@ -1010,7 +1012,7 @@ app.get('/api/departments', async (req, res) => {
 // Get all requests
 app.get('/api/requests', async (req, res) => {
   try {
-    const { status, platform, priority, ownerUserId, campaignId, departmentId, deadlineFrom, deadlineTo, search, source } = req.query;
+    const { status, platform, priority, ownerUserId, campaignId, departmentId, deadlineFrom, deadlineTo, search, source, workspaceId } = req.query;
 
     let query = `
       SELECT r.*,
@@ -1025,6 +1027,11 @@ app.get('/api/requests', async (req, res) => {
       WHERE 1=1
     `;
     const params = [];
+
+    if (workspaceId) {
+      query += ' AND r.workspace_id = ?';
+      params.push(workspaceId);
+    }
 
     if (status) {
       query += ' AND r.status = ?';
@@ -1107,15 +1114,15 @@ app.get('/api/requests/:id', async (req, res) => {
 // Create request (internal)
 app.post('/api/requests', async (req, res) => {
   try {
-    const { title, description, department_id, campaign_id, platform, content_type, priority, deadline_at, owner_user_id } = req.body;
+    const { title, description, department_id, campaign_id, platform, content_type, priority, deadline_at, owner_user_id, workspace_id } = req.body;
 
     if (!title || !platform || !content_type) {
       return res.status(400).json({ error: 'title, platform, and content_type are required' });
     }
 
     const [result] = await pool.execute(
-      `INSERT INTO requests (title, description, department_id, campaign_id, platform, content_type, priority, deadline_at, status, owner_user_id, source)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'new', ?, 'internal')`,
+      `INSERT INTO requests (title, description, department_id, campaign_id, platform, content_type, priority, deadline_at, status, owner_user_id, source, workspace_id)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'new', ?, 'internal', ?)`,
       [
         title,
         description || null,
@@ -1126,6 +1133,7 @@ app.post('/api/requests', async (req, res) => {
         priority || 'normal',
         toMysqlDate(deadline_at),
         owner_user_id || null,
+        workspace_id || null,
       ]
     );
 
@@ -1151,7 +1159,7 @@ app.post('/api/requests', async (req, res) => {
 // Public request submission endpoint (handles department and user creation)
 app.post('/api/requests/public', async (req, res) => {
   try {
-    const { title, description, platform, content_type, priority, deadline_at, requester_name, requester_email, department_name } = req.body;
+    const { title, description, platform, content_type, priority, deadline_at, requester_name, requester_email, department_name, workspace_id } = req.body;
 
     if (!title || !platform || !content_type || !requester_name || !requester_email || !department_name) {
       return res.status(400).json({ error: 'title, platform, content_type, requester_name, requester_email, and department_name are required' });
@@ -1198,8 +1206,8 @@ app.post('/api/requests/public', async (req, res) => {
 
     // Create the request
     const [result] = await pool.execute(
-      `INSERT INTO requests (title, description, department_id, platform, content_type, priority, deadline_at, status, requester_user_id, source)
-             VALUES (?, ?, ?, ?, ?, ?, ?, 'new', ?, 'external')`,
+      `INSERT INTO requests (title, description, department_id, platform, content_type, priority, deadline_at, status, requester_user_id, source, workspace_id)
+             VALUES (?, ?, ?, ?, ?, ?, ?, 'new', ?, 'external', ?)`,
       [
         title,
         description || null,
@@ -1209,6 +1217,7 @@ app.post('/api/requests/public', async (req, res) => {
         priority || 'normal',
         toMysqlDate(deadline_at),
         requesterUserId,
+        workspace_id || null,
       ]
     );
 

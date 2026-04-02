@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { UserPlus, Users, Crown, Shield, User, Loader2, Copy, Check } from 'lucide-react';
+import { UserPlus, Users, Crown, Shield, User, Loader2, Copy, Check, Globe } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 const ROLE_ICONS = {
@@ -185,6 +185,31 @@ export default function WorkspaceSettings() {
           <p className="mt-2 text-xs text-gray-600">Invite links expire after 7 days.</p>
         </section>
       )}
+
+      {/* Public Request Form Link section */}
+      <section>
+        <div className="flex items-center gap-2 mb-4">
+          <Globe className="w-4 h-4 text-gray-400" />
+          <h2 className="text-sm font-semibold text-gray-200 uppercase tracking-wider">
+            Public Request Link
+          </h2>
+        </div>
+        <p className="text-sm text-gray-500 mb-3">Share this link with other departments so they can submit requests directly to this team.</p>
+        <div className="mt-3 flex items-center gap-2 rounded-lg bg-gray-900 border border-gray-700 px-3 py-2">
+          <p className="flex-1 text-xs text-gray-400 truncate">{window.location.origin}/request?team={currentWorkspace.id}</p>
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(`${window.location.origin}/request?team=${currentWorkspace.id}`);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2000);
+            }}
+            className="shrink-0 text-gray-400 hover:text-white transition"
+            title="Copy link"
+          >
+            {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
+          </button>
+        </div>
+      </section>
     </div>
   );
 }

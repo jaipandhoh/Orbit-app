@@ -3,6 +3,9 @@ import { Send, CheckCircle, User, Building2 } from 'lucide-react';
 import OrbitLogo from './OrbitLogo';
 
 const PublicRequestView = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const teamId = urlParams.get('team');
+
     const [formData, setFormData] = useState({
         title: '',
         description: '',
@@ -48,6 +51,7 @@ const PublicRequestView = () => {
             requester_name: formData.requester_name,
             requester_email: formData.requester_email,
             department_name: formData.department_name,
+            workspace_id: teamId,
         };
 
         try {

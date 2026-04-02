@@ -63,6 +63,7 @@ async function callGemini(prompt, notify) {
 
 const AppContent = () => {
   const { toast } = useToast();
+  const { currentWorkspace } = useAuth();
   const [currentView, setCurrentView] = useState(window.location.pathname === '/request' ? VIEWS.PUBLIC_REQUEST : DEFAULT_VIEW);
   const [activeModal, setActiveModal] = useState(null);
   const [selectedCampaign, setSelectedCampaign] = useState(null);
@@ -187,8 +188,8 @@ const AppContent = () => {
 
   // Fetch data from backend
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (currentWorkspace) fetchData();
+  }, [currentWorkspace]);
 
   // Apply theme class to document
   useEffect(() => {
@@ -200,6 +201,7 @@ const AppContent = () => {
   }, [isDarkMode]);
 
   const fetchData = async () => {
+    if (!currentWorkspace) return;
     try {
       setLoading(true);
       const [campaignsRes, postsRes, deliverablesRes, contactsRes, requestsRes, approvalRulesRes, usersRes, departmentsRes] = await Promise.all([
@@ -231,7 +233,7 @@ const AppContent = () => {
           console.error('Error fetching contacts:', err);
           return [];
         }),
-        fetch(`${API_BASE}/requests`).then((r) => {
+        fetch(`${API_BASE}/requests?workspaceId=${currentWorkspace.id}`).then((r) => {
           if (!r.ok) return [];
           return r.json();
         }).catch(err => {
@@ -1078,6 +1080,7 @@ const AppContent = () => {
           }}
           onSubmit={async (formData) => {
             try {
+              const payload = { ...formData, workspace_id: currentWorkspace?.id || null };
               const url = selectedRequest
                 ? `${API_BASE}/requests/${selectedRequest.request_id}`
                 : `${API_BASE}/requests`;
@@ -1085,7 +1088,7 @@ const AppContent = () => {
               const response = await fetch(url, {
                 method,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData),
+                body: JSON.stringify(payload),
               });
               if (!response.ok) throw new Error('Failed to save request');
               await fetchData();
