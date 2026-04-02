@@ -15,6 +15,7 @@ export const VIEWS = {
   REQUEST_DETAIL: 'request-detail',
   PUBLIC_REQUEST: 'public-request',
   TODO: 'todo',
+  HELP: 'help',
 };
 
 export const MODALS = {

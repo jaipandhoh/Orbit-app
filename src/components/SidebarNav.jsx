@@ -38,9 +38,8 @@ const SidebarNav = ({
 }) => {
   return (
     <div
-      className={`fixed left-0 top-0 h-full w-64 ${
-        isDarkMode ? 'bg-black border-gray-800' : 'bg-white border-gray-200'
-      } border-r p-6 shadow-lg`}
+      className={`fixed left-0 top-0 h-full w-64 ${isDarkMode ? 'bg-black border-gray-800' : 'bg-white border-gray-200'
+        } border-r p-6 shadow-lg`}
     >
       <div className="flex items-center gap-3 mb-8">
         <div className="w-10 h-10 flex items-center justify-center">
@@ -56,13 +55,12 @@ const SidebarNav = ({
           <button
             key={item.id}
             onClick={() => onNavigate(item.id)}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-              currentView === item.id
-                ? 'bg-primary/20 text-primary font-semibold'
-                : isDarkMode
-                  ? 'text-gray-300 hover:bg-gray-900'
-                  : 'text-gray-700 hover:bg-gray-100'
-            }`}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${currentView === item.id
+              ? 'bg-primary/20 text-primary font-semibold'
+              : isDarkMode
+                ? 'text-gray-300 hover:bg-gray-900'
+                : 'text-gray-700 hover:bg-gray-100'
+              }`}
           >
             <item.icon size={20} />
             {item.label}
@@ -77,27 +75,24 @@ const SidebarNav = ({
       <div className="absolute bottom-6 left-6 right-6 space-y-2">
         <button
           onClick={onToggleTheme}
-          className={`w-full flex items-center gap-3 px-4 py-3 ${
-            isDarkMode ? 'text-gray-300 hover:bg-gray-900' : 'text-gray-600 hover:bg-gray-100'
-          } rounded-xl transition-all`}
+          className={`w-full flex items-center gap-3 px-4 py-3 ${isDarkMode ? 'text-gray-300 hover:bg-gray-900' : 'text-gray-600 hover:bg-gray-100'
+            } rounded-xl transition-all`}
         >
           {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
           {isDarkMode ? 'Light Mode' : 'Dark Mode'}
         </button>
         <button
           onClick={onShowOnboarding}
-          className={`w-full flex items-center gap-3 px-4 py-3 ${
-            isDarkMode ? 'text-gray-300 hover:bg-gray-900' : 'text-gray-600 hover:bg-gray-100'
-          } rounded-xl transition-all`}
+          className={`w-full flex items-center gap-3 px-4 py-3 ${isDarkMode ? 'text-gray-300 hover:bg-gray-900' : 'text-gray-600 hover:bg-gray-100'
+            } rounded-xl transition-all`}
         >
           <Sparkles size={20} />
           Setup Templates
         </button>
         <button
           onClick={onShowSettings}
-          className={`w-full flex items-center gap-3 px-4 py-3 ${
-            isDarkMode ? 'text-gray-300 hover:bg-gray-900' : 'text-gray-600 hover:bg-gray-100'
-          } rounded-xl transition-all`}
+          className={`w-full flex items-center gap-3 px-4 py-3 ${isDarkMode ? 'text-gray-300 hover:bg-gray-900' : 'text-gray-600 hover:bg-gray-100'
+            } rounded-xl transition-all`}
         >
           <Settings size={20} />
           Settings

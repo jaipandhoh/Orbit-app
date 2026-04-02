@@ -20,6 +20,8 @@ import AssetsView from './AssetsView.jsx';
 import SettingsPage from './SettingsPage.jsx';
 import { useToast } from './ToastProvider.jsx';
 import TopNav from './components/TopNav.jsx';
+import OnboardingTour, { shouldShowTour } from './components/OnboardingTour.jsx';
+import HelpView from './Views/HelpView.jsx';
 import ApprovalReviewModal from './ApprovalReviewModal.jsx';
 import PublicRequestView from './PublicRequestView.jsx';
 import MasterTodoView from './MasterTodoView.jsx';
@@ -71,7 +73,7 @@ const AppContent = () => {
   const [editingDeliverable, setEditingDeliverable] = useState(null);
   const [deliverableCampaignId, setDeliverableCampaignId] = useState(null);
   const [calendarView, setCalendarView] = useState('month');
-  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(() => shouldShowTour());
   const [campaigns, setCampaigns] = useState([]);
   const [posts, setPosts] = useState([]);
   const [deliverables, setDeliverables] = useState([]);
@@ -950,6 +952,12 @@ const AppContent = () => {
           />
         )}
         {currentView === VIEWS.ASSETS && <AssetsView />}
+        {currentView === VIEWS.HELP && (
+          <HelpView
+            onNavigate={navigate}
+            onReplayTour={() => setShowOnboarding(true)}
+          />
+        )}
         {currentView === VIEWS.SETTINGS && (
           <SettingsPage
             isDarkMode={isDarkMode}
@@ -991,6 +999,7 @@ const AppContent = () => {
             onRefreshData={fetchData}
             loading={loading}
             apiBase={API_BASE}
+            onNavigateHelp={() => navigate(VIEWS.HELP)}
           />
         )}
         {currentView === VIEWS.REQUEST_DETAIL && selectedRequest && (
@@ -1113,6 +1122,14 @@ const AppContent = () => {
           onClose={() => { closeModal(); setReviewingApproval(null); }}
           onApprove={() => handleApprove(reviewingApproval.post_id)}
           onReject={(fb) => handleReject(reviewingApproval.post_id, fb)}
+        />
+      )}
+
+      {/* First-login onboarding tour */}
+      {showOnboarding && (
+        <OnboardingTour
+          onComplete={() => setShowOnboarding(false)}
+          onViewHelp={() => { setShowOnboarding(false); navigate(VIEWS.HELP); }}
         />
       )}
     </div>
