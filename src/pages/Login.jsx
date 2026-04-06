@@ -3,24 +3,6 @@ import { supabase } from '../lib/supabase';
 
 // ─── SVG Icons ───────────────────────────────────────────────────────────────
 
-const GoogleIcon = () => (
-  <svg viewBox="0 0 24 24" className="w-4 h-4 flex-shrink-0" aria-hidden="true">
-    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" />
-    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-  </svg>
-);
-
-const MicrosoftIcon = () => (
-  <svg viewBox="0 0 21 21" className="w-4 h-4 flex-shrink-0" aria-hidden="true">
-    <rect x="1"  y="1"  width="9" height="9" fill="#F25022" />
-    <rect x="11" y="1"  width="9" height="9" fill="#7FBA00" />
-    <rect x="1"  y="11" width="9" height="9" fill="#00A4EF" />
-    <rect x="11" y="11" width="9" height="9" fill="#FFB900" />
-  </svg>
-);
-
 const SpinnerIcon = () => (
   <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -165,17 +147,6 @@ export default function Login() {
 
   const reset = () => { setError(''); setInfo(''); };
 
-  const signInWithProvider = async (provider) => {
-    reset();
-    setLoading(true);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: { redirectTo: `${window.location.origin}/` },
-    });
-    if (error) setError(error.message);
-    setLoading(false);
-  };
-
   const handleEmailAuth = async (e) => {
     e.preventDefault();
     reset();
@@ -243,18 +214,6 @@ export default function Login() {
           border-color: rgba(99,102,241,0.5);
           box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
         }
-
-        .ol-sso {
-          background: rgba(255,255,255,0.035);
-          border: 1px solid rgba(255,255,255,0.08);
-          transition: background 0.18s, border-color 0.18s, transform 0.18s;
-        }
-        .ol-sso:hover:not(:disabled) {
-          background: rgba(255,255,255,0.07);
-          border-color: rgba(255,255,255,0.16);
-          transform: translateY(-1px);
-        }
-        .ol-sso:active:not(:disabled) { transform: translateY(0); }
 
         .ol-cta {
           background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
@@ -329,7 +288,7 @@ export default function Login() {
               Plan, approve, and publish every piece of communications work from one intelligent workspace.
             </p>
             <div className="space-y-3">
-              <Feature text="AI-powered campaign planning" />
+              <Feature text="End-to-end campaign planning" />
               <Feature text="Real-time approval workflows" />
               <Feature text="Multi-channel content management" />
             </div>
@@ -356,18 +315,9 @@ export default function Login() {
                 ──────────────────────────────────────────────────────────────── */}
             <div className="ol-f1 flex flex-col items-center mb-8">
               <div
-                className="ol-logo-slot w-[72px] h-[72px] rounded-2xl flex flex-col items-center justify-center gap-1.5 mb-2 select-none"
-                title="Replace with your logo"
+                className="w-[72px] h-[72px] flex flex-col items-center justify-center mb-2 select-none"
               >
-                <svg viewBox="0 0 26 26" className="w-6 h-6 opacity-35" fill="none" aria-hidden="true">
-                  <rect x="2" y="2" width="22" height="22" rx="5"
-                    stroke="#818cf8" strokeWidth="1.5" strokeDasharray="3.5 3" />
-                  <path d="M8 13h10M13 8v10" stroke="#818cf8"
-                    strokeWidth="1.5" strokeLinecap="round" />
-                </svg>
-                <span className="text-[8px] font-semibold tracking-[0.14em] text-indigo-400/35 uppercase">
-                  Your Logo
-                </span>
+                <img src="/orbit-logo.png" alt="Orbit" className="w-full h-full object-contain" />
               </div>
             </div>
             {/* ── End logo slot ── */}
@@ -382,37 +332,6 @@ export default function Login() {
                   ? 'Sign in to your Orbit workspace'
                   : 'Start your free 14-day trial'}
               </p>
-            </div>
-
-            {/* SSO buttons */}
-            <div className="ol-f3 grid grid-cols-2 gap-2.5 mb-5">
-              <button
-                type="button"
-                onClick={() => signInWithProvider('google')}
-                disabled={loading}
-                className="ol-sso flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-medium text-gray-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <GoogleIcon />
-                Google
-              </button>
-              <button
-                type="button"
-                onClick={() => signInWithProvider('azure')}
-                disabled={loading}
-                className="ol-sso flex items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-medium text-gray-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <MicrosoftIcon />
-                Microsoft
-              </button>
-            </div>
-
-            {/* Divider */}
-            <div className="ol-f3 flex items-center gap-3 mb-5">
-              <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.055)' }} />
-              <span className="text-[11px] font-medium text-gray-600 whitespace-nowrap">
-                or continue with email
-              </span>
-              <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.055)' }} />
             </div>
 
             {/* Form */}
@@ -502,12 +421,11 @@ export default function Login() {
               </button>
             </p>
 
-            {/* Fine print */}
             <p className="ol-f5 mt-8 text-center text-[11px] text-gray-700 leading-relaxed">
               By continuing you agree to Orbit&rsquo;s{' '}
-              <span className="text-gray-600 cursor-pointer hover:text-gray-400 transition-colors">Terms</span>
+              <a href="/terms" className="text-gray-600 cursor-pointer hover:text-gray-400 transition-colors">Terms</a>
               {' '}and{' '}
-              <span className="text-gray-600 cursor-pointer hover:text-gray-400 transition-colors">Privacy Policy</span>.
+              <a href="/privacy" className="text-gray-600 cursor-pointer hover:text-gray-400 transition-colors">Privacy Policy</a>.
             </p>
 
           </div>

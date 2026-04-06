@@ -166,7 +166,7 @@ const HelpView = ({ onNavigate, onReplayTour }) => {
           steps={[
             'Get a free API key from Google AI Studio (aistudio.google.com).',
             'Open your project\'s .env file.',
-            'Add the line: VITE_GEMINI_API_KEY=your_key_here',
+            'Add the line: GEMINI_API_KEY=your_key_here',
             'Restart the dev server with npm run dev:server.',
             'The Integrations tab in Settings will show "Connected" when active.',
           ]}

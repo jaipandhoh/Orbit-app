@@ -330,7 +330,7 @@ const IntegrationsTab = ({ geminiConfigured, apiBase }) => (
         </div>
         {!geminiConfigured && (
           <div className="mt-3 p-3 rounded-xl bg-warning/5 border border-warning/20 text-xs text-warning">
-            Set <code className="font-mono bg-warning/10 px-1 rounded">VITE_GEMINI_API_KEY</code> in your <code className="font-mono bg-warning/10 px-1 rounded">.env</code> file to enable AI features.
+            Set <code className="font-mono bg-warning/10 px-1 rounded">GEMINI_API_KEY</code> in your <code className="font-mono bg-warning/10 px-1 rounded">.env</code> file to enable AI features.
           </div>
         )}
       </div>

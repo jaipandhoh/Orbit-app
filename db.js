@@ -9,6 +9,7 @@ const { Pool } = pg;
 // `.query()` and `.execute()` methods that mimic mysql2's behavior.
 const pgPool = new Pool({
   connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : undefined,
 });
 
 function convertQuery(sql) {

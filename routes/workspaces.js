@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { randomBytes } from 'crypto';
 import pool from '../db.js';
 import authMiddleware from '../middleware/authMiddleware.js';
+import { workspaceCreateLimiter, inviteLimiter } from '../middleware/rateLimiters.js';
 
 const router = Router();
 
@@ -50,7 +51,7 @@ router.get('/', async (req, res) => {
  * Creates a new (non-personal) team workspace.
  * Body: { name: string }
  */
-router.post('/', async (req, res) => {
+router.post('/', workspaceCreateLimiter, async (req, res) => {
   const { name } = req.body;
   if (!name?.trim()) {
     return res.status(400).json({ error: 'Workspace name is required' });
@@ -113,7 +114,7 @@ router.get('/:id/members', async (req, res) => {
  * Caller must be owner or admin.
  * Body: { email: string }
  */
-router.post('/:id/invites', async (req, res) => {
+router.post('/:id/invites', inviteLimiter, async (req, res) => {
   const { id } = req.params;
   const { email } = req.body;
 

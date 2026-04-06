@@ -28,38 +28,10 @@ import MasterTodoView from './MasterTodoView.jsx';
 import { VIEWS, MODALS, DEFAULT_VIEW } from './routes.js';
 import { useAuth } from './context/AuthContext';
 import Login from './pages/Login';
+import TermsOfUse from './pages/TermsOfUse';
+import DataCompliance from './pages/DataCompliance';
 
-// Gemini API Key (set in Vite env as VITE_GEMINI_API_KEY)
-const GEMINI_API_KEY = import.meta.env?.VITE_GEMINI_API_KEY || '';
 const API_BASE = '/api';
-
-// Helper function to call Gemini API
-async function callGemini(prompt, notify) {
-  if (!GEMINI_API_KEY) {
-    notify?.('AI is not configured. Set VITE_GEMINI_API_KEY to enable AI features.', { type: 'info' });
-    return null;
-  }
-  try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${GEMINI_API_KEY}`;
-    const payload = {
-      contents: [{ parts: [{ text: prompt }] }],
-    };
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) throw new Error('AI request failed');
-    const data = await response.json();
-    return data.candidates[0].content.parts[0].text;
-  } catch (error) {
-    console.error('Gemini API Error:', error);
-    notify?.('Failed to generate AI content. Please try again.', { type: 'error' });
-    return null;
-  }
-}
 
 const AppContent = () => {
   const { toast } = useToast();
@@ -87,6 +59,14 @@ const AppContent = () => {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [approvals, setApprovals] = useState([]);
   const [reviewingApproval, setReviewingApproval] = useState(null);
+  const [geminiConfigured, setGeminiConfigured] = useState(false);
+
+  useEffect(() => {
+    fetch(`${API_BASE}/ai/status`)
+      .then(r => r.json())
+      .then(d => setGeminiConfigured(Boolean(d?.configured)))
+      .catch(() => setGeminiConfigured(false));
+  }, []);
 
   const navigate = (view) => setCurrentView(view);
   const openModal = (modal) => setActiveModal(modal);
@@ -964,7 +944,7 @@ const AppContent = () => {
           <SettingsPage
             isDarkMode={isDarkMode}
             onToggleTheme={() => setIsDarkMode(!isDarkMode)}
-            geminiConfigured={Boolean(GEMINI_API_KEY)}
+            geminiConfigured={geminiConfigured}
             approvalRules={approvalRules}
             onSaveApprovalRule={async (ruleData) => {
               try {
@@ -1141,6 +1121,11 @@ const AppContent = () => {
 
 const App = () => {
   const { user, loading } = useAuth();
+  
+  const path = window.location.pathname;
+  if (path === '/terms') return <TermsOfUse />;
+  if (path === '/privacy') return <DataCompliance />;
+
   if (loading) return <div className="min-h-screen bg-gray-950" />;
   if (!user) return <Login />;
   return <AppContent />;

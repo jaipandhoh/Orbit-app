@@ -6,7 +6,16 @@ import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 dotenv.config();
 import cors from "cors";
+import helmet from "helmet";
 import workspacesRouter from "./routes/workspaces.js";
+import authMiddleware from "./middleware/authMiddleware.js";
+import optionalAuth from "./middleware/optionalAuth.js";
+import {
+  apiLimiter,
+  aiGenerateLimiter,
+  aiChatLimiter,
+  publicSubmitLimiter,
+} from "./middleware/rateLimiters.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -101,13 +110,112 @@ function extractJsonFromText(text) {
   return candidate.slice(firstBrace, lastBrace + 1);
 }
 
-// Middleware
-app.use(cors());
+// Force HTTPS in production
+app.use((req, res, next) => {
+  if (process.env.NODE_ENV === 'production' && req.headers['x-forwarded-proto'] && req.headers['x-forwarded-proto'] !== 'https') {
+    return res.redirect(`https://${req.headers.host}${req.url}`);
+  }
+  next();
+});
+
+// Comprehensive traffic and error logging middleware
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    if (res.statusCode >= 400) {
+      console.warn(`[API_ERROR] ${req.method} ${req.originalUrl} - Status: ${res.statusCode} - IP: ${req.ip} - Duration: ${duration}ms`);
+    } else if (duration > 1000) {
+      // Log slow requests as unusual
+      console.log(`[TRAFFIC_SLOW] ${req.method} ${req.originalUrl} - Status: ${res.statusCode} - IP: ${req.ip} - Duration: ${duration}ms`);
+    } else {
+      // Optional trace logging for debugging
+      // console.log(`[TRAFFIC] ${req.method} ${req.originalUrl} - Status: ${res.statusCode} - IP: ${req.ip}`);
+    }
+  });
+  next();
+});
+
+// Security headers (helmet must come first)
+app.use(helmet({
+  // Allow Vite's inline scripts in development; tighten in production if needed
+  contentSecurityPolicy: process.env.NODE_ENV === 'production' ? {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://vercel.live"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      imgSrc: ["'self'", "data:", "https://*"],
+      connectSrc: ["'self'", "https://*"]
+    }
+  } : false,
+}));
+
+// CORS — only allow the known app origins
+const allowedOrigins = [
+  process.env.APP_URL,
+  'http://localhost:5173',
+  'http://localhost:3000',
+].filter(Boolean);
+
+app.use(cors({
+  origin: (origin, cb) => {
+    // Allow server-to-server / curl requests (no Origin header) only in dev
+    if (!origin && process.env.NODE_ENV !== 'production') return cb(null, true);
+    if (allowedOrigins.includes(origin)) return cb(null, true);
+    cb(new Error(`CORS: origin ${origin} not allowed`));
+  },
+  credentials: true,
+}));
+
+// Soft JWT extraction — populates req.user when a valid token is present so
+// that downstream rate-limiters can key on user ID instead of raw IP.
+// Must come before apiLimiter so the key generator sees req.user.
+app.use(optionalAuth);
+
+// General API rate limit (120 req/min, keyed per user or IP)
+app.use('/api', apiLimiter);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Workspace routes (auth required — see middleware/authMiddleware.js)
 app.use('/api/workspaces', workspacesRouter);
+
+// ─── Authentication guard ────────────────────────────────────────────────────
+// All /api/* routes require a valid Supabase JWT except:
+//   GET  /api               – health check (no token needed)
+//   GET  /api/health/db     – DB health check
+//   POST /api/requests/public – external request submission form (no account)
+app.use('/api', (req, res, next) => {
+  if (
+    (req.method === 'GET' && (req.path === '/' || req.path === '' || req.path === '/health/db')) ||
+    (req.method === 'POST' && req.path === '/requests/public')
+  ) {
+    return next();
+  }
+  authMiddleware(req, res, next);
+});
+
+// ─── IDOR helper: verify the requesting user can access a given request ───────
+// A user may access a request if:
+//   • the request has no workspace_id (legacy / unscoped data), OR
+//   • the user is a member of the request's workspace
+async function assertRequestAccess(requestId, userId, res) {
+  const [rows] = await pool.execute(
+    `SELECT r.request_id
+     FROM requests r
+     LEFT JOIN workspace_members wm
+       ON r.workspace_id = wm.workspace_id AND wm.user_id = ?
+     WHERE r.request_id = ?
+       AND (r.workspace_id IS NULL OR wm.user_id IS NOT NULL)`,
+    [userId, requestId]
+  );
+  if (rows.length === 0) {
+    res.status(404).json({ error: 'Request not found' });
+    return false;
+  }
+  return true;
+}
 
 // Serve static files from dist (Vite build output)
 app.use(express.static(path.join(__dirname, 'dist')));
@@ -180,7 +288,11 @@ app.put("/api/campaigns/:id/plan", async (req, res) => {
 });
 
 // ===== GEMINI (server-side proxy) =====
-app.post("/api/ai/campaign-plan", async (req, res) => {
+app.get("/api/ai/status", (req, res) => {
+  res.json({ configured: Boolean(GEMINI_API_KEY) });
+});
+
+app.post("/api/ai/campaign-plan", aiGenerateLimiter, async (req, res) => {
   try {
     if (!GEMINI_API_KEY) {
       return res.status(400).json({ error: "GEMINI_API_KEY is not set on the server." });
@@ -314,7 +426,7 @@ function describeVibe(vibe) {
 }
 
 // ===== AI: FULL CAMPAIGN CONTENT GENERATION =====
-app.post("/api/ai/campaign-generate", async (req, res) => {
+app.post("/api/ai/campaign-generate", aiGenerateLimiter, async (req, res) => {
   try {
     const { name, goal, audience, platforms, vibe, startDate, endDate, postsPerWeek, reelsPerWeek, mustInclude, cta, brief } = req.body || {};
     const activePlatforms = Object.entries(platforms || {}).filter(([, v]) => v).map(([k]) => k);
@@ -414,7 +526,7 @@ ${cta ? `- Primary CTA across all content: "${cta}"` : ""}`;
 });
 
 // ===== AI: COLOR PALETTE GENERATION =====
-app.post("/api/ai/campaign-palettes", async (req, res) => {
+app.post("/api/ai/campaign-palettes", aiGenerateLimiter, async (req, res) => {
   try {
     const { name, goal, audience, vibe } = req.body || {};
     const vibeDesc = describeVibe(vibe || { serious: 50, bold: 50, corporate: 50 });
@@ -470,7 +582,7 @@ RULES:
 });
 
 // ===== AI: CAPTION BANK GENERATION =====
-app.post("/api/ai/campaign-captions", async (req, res) => {
+app.post("/api/ai/campaign-captions", aiGenerateLimiter, async (req, res) => {
   try {
     const { name, goal, audience, platforms, vibe, cta, mustInclude } = req.body || {};
     const activePlatforms = Object.entries(platforms || {}).filter(([, v]) => v).map(([k]) => k);
@@ -536,7 +648,7 @@ RULES:
 });
 
 // ===== AI: COPILOT CHAT =====
-app.post("/api/ai/campaign-chat", async (req, res) => {
+app.post("/api/ai/campaign-chat", aiChatLimiter, async (req, res) => {
   try {
     const { messages, campaignContext } = req.body || {};
     const ctx = campaignContext || {};
@@ -1029,8 +1141,22 @@ app.get('/api/requests', async (req, res) => {
     const params = [];
 
     if (workspaceId) {
+      // Verify the requesting user is actually a member of the requested workspace
+      const [membership] = await pool.execute(
+        `SELECT 1 FROM workspace_members WHERE workspace_id = ? AND user_id = ?`,
+        [workspaceId, req.user.id]
+      );
+      if (membership.length === 0) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
       query += ' AND r.workspace_id = ?';
       params.push(workspaceId);
+    } else {
+      // Scope to workspaces the user belongs to, plus legacy unscoped requests
+      query += ` AND (r.workspace_id IS NULL OR r.workspace_id IN (
+        SELECT workspace_id FROM workspace_members WHERE user_id = ?
+      ))`;
+      params.push(req.user.id);
     }
 
     if (status) {
@@ -1088,6 +1214,8 @@ app.get('/api/requests', async (req, res) => {
 // Get single request
 app.get('/api/requests/:id', async (req, res) => {
   try {
+    if (!await assertRequestAccess(req.params.id, req.user.id, res)) return;
+
     const [rows] = await pool.execute(
       `SELECT r.*,
         requester.name AS requester_name,
@@ -1157,7 +1285,7 @@ app.post('/api/requests', async (req, res) => {
 });
 
 // Public request submission endpoint (handles department and user creation)
-app.post('/api/requests/public', async (req, res) => {
+app.post('/api/requests/public', publicSubmitLimiter, async (req, res) => {
   try {
     const { title, description, platform, content_type, priority, deadline_at, requester_name, requester_email, department_name, workspace_id } = req.body;
 
@@ -1243,6 +1371,8 @@ app.post('/api/requests/public', async (req, res) => {
 // Update request
 app.patch('/api/requests/:id', async (req, res) => {
   try {
+    if (!await assertRequestAccess(req.params.id, req.user.id, res)) return;
+
     const { title, description, priority, status, deadline_at, scheduled_at, owner_user_id, campaign_id, platform, content_type, department_id } = req.body;
 
     const updateFields = [];
@@ -1297,6 +1427,8 @@ app.patch('/api/requests/:id', async (req, res) => {
 // Submit request for approval
 app.post('/api/requests/:id/submit-for-approval', async (req, res) => {
   try {
+    if (!await assertRequestAccess(req.params.id, req.user.id, res)) return;
+
     const [result] = await pool.execute(
       `UPDATE requests SET status = 'in_review' WHERE request_id = ?`,
       [req.params.id]
@@ -1771,6 +1903,8 @@ app.get('/api/approvals/pending', async (req, res) => {
 // ===== REQUEST COMMENTS (STUDIO VIEW) =====
 app.get('/api/requests/:id/comments', async (req, res) => {
   try {
+    if (!await assertRequestAccess(req.params.id, req.user.id, res)) return;
+
     const requestId = parseInt(req.params.id, 10);
     const [rows] = await pool.query(
       'SELECT * FROM approval_comments WHERE request_id = ? ORDER BY created_at ASC',
@@ -1785,6 +1919,8 @@ app.get('/api/requests/:id/comments', async (req, res) => {
 
 app.post('/api/requests/:id/comments', async (req, res) => {
   try {
+    if (!await assertRequestAccess(req.params.id, req.user.id, res)) return;
+
     const requestId = parseInt(req.params.id, 10);
     const { body, pinX, pinY, author_name } = req.body;
 
@@ -1829,6 +1965,8 @@ const fetchRequestWithJoins = async (requestId) => {
 // Approve a request
 app.post('/api/requests/:id/approve', async (req, res) => {
   try {
+    if (!await assertRequestAccess(req.params.id, req.user.id, res)) return;
+
     const [result] = await pool.execute(
       `UPDATE requests SET status = 'approved' WHERE request_id = ?`,
       [req.params.id]
@@ -1845,6 +1983,8 @@ app.post('/api/requests/:id/approve', async (req, res) => {
 // Reject / request changes on a request
 app.post('/api/requests/:id/reject', async (req, res) => {
   try {
+    if (!await assertRequestAccess(req.params.id, req.user.id, res)) return;
+
     const [result] = await pool.execute(
       `UPDATE requests SET status = 'changes_requested' WHERE request_id = ?`,
       [req.params.id]
