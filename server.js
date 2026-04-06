@@ -110,15 +110,13 @@ function extractJsonFromText(text) {
   return candidate.slice(firstBrace, lastBrace + 1);
 }
 
-// Force HTTPS in production
-app.use((req, res, next) => {
-  if (process.env.NODE_ENV === 'production' && req.headers['x-forwarded-proto'] && req.headers['x-forwarded-proto'] !== 'https') {
-    return res.redirect(`https://${req.headers.host}${req.url}`);
-  }
-  next();
-});
+// Security headers (helmet must come first)
+app.use(helmet({
+  // Allow Vite's inline scripts in development; tighten in production if needed
+  contentSecurityPolicy: process.env.NODE_ENV === 'production',
+}));
 
-// Comprehensive traffic and error logging middleware
+// Comprehensive traffic and API error logging
 app.use((req, res, next) => {
   const start = Date.now();
   res.on('finish', () => {
@@ -126,29 +124,11 @@ app.use((req, res, next) => {
     if (res.statusCode >= 400) {
       console.warn(`[API_ERROR] ${req.method} ${req.originalUrl} - Status: ${res.statusCode} - IP: ${req.ip} - Duration: ${duration}ms`);
     } else if (duration > 1000) {
-      // Log slow requests as unusual
       console.log(`[TRAFFIC_SLOW] ${req.method} ${req.originalUrl} - Status: ${res.statusCode} - IP: ${req.ip} - Duration: ${duration}ms`);
-    } else {
-      // Optional trace logging for debugging
-      // console.log(`[TRAFFIC] ${req.method} ${req.originalUrl} - Status: ${res.statusCode} - IP: ${req.ip}`);
     }
   });
   next();
 });
-
-// Security headers (helmet must come first)
-app.use(helmet({
-  // Allow Vite's inline scripts in development; tighten in production if needed
-  contentSecurityPolicy: process.env.NODE_ENV === 'production' ? {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "https://vercel.live"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-      imgSrc: ["'self'", "data:", "https://*"],
-      connectSrc: ["'self'", "https://*"]
-    }
-  } : false,
-}));
 
 // CORS — only allow the known app origins
 const allowedOrigins = [
