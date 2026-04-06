@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ListTodo, CheckCircle2, Circle, AlertTriangle, Clock, Calendar, Inbox, FileText, Megaphone, RefreshCw } from 'lucide-react';
+import { useAuth } from './context/AuthContext';
 
 const API_BASE = '/api';
 
@@ -145,6 +146,7 @@ const SectionHeader = ({ icon: Icon, label, count, accentClass, emptyMessage }) 
 // ── main component ────────────────────────────────────────────────────────────
 
 const MasterTodoView = () => {
+  const { authFetch } = useAuth();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -154,7 +156,7 @@ const MasterTodoView = () => {
     try {
       setLoading(true);
       setError(null);
-      const res = await fetch(`${API_BASE}/todo`);
+      const res = await authFetch(`${API_BASE}/todo`);
       if (!res.ok) throw new Error(`Server error: ${res.status}`);
       const data = await res.json();
       setItems(Array.isArray(data) ? data : []);

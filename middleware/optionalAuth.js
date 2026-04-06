@@ -12,10 +12,10 @@
 
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.SUPABASE_JWT_SECRET;
 const JWT_VERIFY_OPTIONS = { algorithms: ['HS256'] };
 
 export default function optionalAuth(req, _res, next) {
+  const JWT_SECRET = process.env.SUPABASE_JWT_SECRET;
   if (!JWT_SECRET) return next();
 
   const authHeader = req.headers.authorization;

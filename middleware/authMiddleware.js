@@ -1,7 +1,5 @@
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.SUPABASE_JWT_SECRET;
-
 // Supabase JWTs are always HS256. Pinning the algorithm prevents
 // algorithm-confusion attacks (e.g. alg:none or RS256 key-confusion).
 const JWT_VERIFY_OPTIONS = { algorithms: ['HS256'] };
@@ -13,6 +11,7 @@ const JWT_VERIFY_OPTIONS = { algorithms: ['HS256'] };
  * (Supabase Dashboard → Settings → API → JWT Secret).
  */
 export default function authMiddleware(req, res, next) {
+  const JWT_SECRET = process.env.SUPABASE_JWT_SECRET;
   if (!JWT_SECRET) {
     // Do not reveal config details to the client
     console.error('SUPABASE_JWT_SECRET is not set in .env');
