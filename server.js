@@ -211,12 +211,23 @@ app.get('/api', (req, res) => {
 
 // Database health check
 app.get("/api/health/db", async (req, res) => {
+  const dbUrl = process.env.DATABASE_URL;
+  const jwtSecret = process.env.SUPABASE_JWT_SECRET;
+
+  // Show config state without exposing secrets
+  const config = {
+    DATABASE_URL: dbUrl
+      ? `set (host: ${(() => { try { return new URL(dbUrl).hostname; } catch { return 'parse-error'; } })()})`
+      : 'NOT SET',
+    SUPABASE_JWT_SECRET: jwtSecret ? 'set' : 'NOT SET',
+  };
+
   try {
     const [rows] = await pool.query("SELECT 1 AS db_ok");
-    res.json({ status: "connected", result: rows });
+    res.json({ status: "connected", config, result: rows });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ status: "error", message: err.message });
+    console.error('[health/db]', err);
+    res.status(500).json({ status: "error", config, message: err.message, code: err.code });
   }
 });
 

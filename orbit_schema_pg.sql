@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS deliverables (
 
 CREATE TABLE IF NOT EXISTS requests (
   request_id SERIAL PRIMARY KEY,
+  workspace_id UUID REFERENCES workspaces(id) ON DELETE CASCADE,
   title VARCHAR(255) NOT NULL,
   description TEXT,
   department_id INT DEFAULT NULL REFERENCES departments(department_id) ON DELETE SET NULL,
@@ -70,10 +71,12 @@ CREATE TABLE IF NOT EXISTS requests (
   priority VARCHAR(32) DEFAULT 'normal',
   deadline_at TIMESTAMP DEFAULT NULL,
   status VARCHAR(64) NOT NULL DEFAULT 'new',
+  source VARCHAR(32) NOT NULL DEFAULT 'internal',
   requester_user_id INT DEFAULT NULL REFERENCES users(user_id) ON DELETE SET NULL,
   owner_user_id INT DEFAULT NULL REFERENCES users(user_id) ON DELETE SET NULL,
   scheduled_at TIMESTAMP DEFAULT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS approval_rules (

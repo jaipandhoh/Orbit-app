@@ -7,8 +7,16 @@ const { Pool } = pg;
 
 // We wrap the standard pg Pool in an object that provides
 // `.query()` and `.execute()` methods that mimic mysql2's behavior.
+if (!process.env.DATABASE_URL) {
+  console.error('[db] DATABASE_URL is not set — all queries will fail');
+}
+
 const pgPool = new Pool({
   connectionString: process.env.DATABASE_URL,
+  // Supabase (and most hosted Postgres) require SSL.
+  // rejectUnauthorized:false accepts Supabase's CA-signed cert without
+  // needing to bundle a root certificate.
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
 });
 
 function convertQuery(sql) {
@@ -52,5 +60,12 @@ const poolWrapper = {
     return this.query(sql, params);
   }
 };
+
+// Test the connection once at startup so misconfiguration shows up immediately in logs
+pgPool.query('SELECT 1').then(() => {
+  console.log('[db] Connected to Postgres');
+}).catch((err) => {
+  console.error('[db] Connection test failed:', err.message);
+});
 
 export default poolWrapper;

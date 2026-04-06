@@ -157,7 +157,10 @@ const MasterTodoView = () => {
       setLoading(true);
       setError(null);
       const res = await authFetch(`${API_BASE}/todo`);
-      if (!res.ok) throw new Error(`Server error: ${res.status}`);
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || `Server error: ${res.status}`);
+      }
       const data = await res.json();
       setItems(Array.isArray(data) ? data : []);
     } catch (err) {
