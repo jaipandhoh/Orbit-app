@@ -7,7 +7,6 @@ import "dotenv/config";
 import cors from "cors";
 import helmet from "helmet";
 import workspacesRouter from "./routes/workspaces.js";
-import authMiddleware from "./middleware/authMiddleware.js";
 import optionalAuth from "./middleware/optionalAuth.js";
 import {
   apiLimiter,
@@ -160,41 +159,6 @@ app.use(express.urlencoded({ extended: true }));
 // Workspace routes (auth required — see middleware/authMiddleware.js)
 app.use('/api/workspaces', workspacesRouter);
 
-// ─── Authentication guard ────────────────────────────────────────────────────
-// All /api/* routes require a valid Supabase JWT except:
-//   GET  /api               – health check (no token needed)
-//   GET  /api/health/db     – DB health check
-//   POST /api/requests/public – external request submission form (no account)
-app.use('/api', (req, res, next) => {
-  if (
-    (req.method === 'GET' && (req.path === '/' || req.path === '' || req.path === '/health/db')) ||
-    (req.method === 'POST' && req.path === '/requests/public')
-  ) {
-    return next();
-  }
-  authMiddleware(req, res, next);
-});
-
-// ─── IDOR helper: verify the requesting user can access a given request ───────
-// A user may access a request if:
-//   • the request has no workspace_id (legacy / unscoped data), OR
-//   • the user is a member of the request's workspace
-async function assertRequestAccess(requestId, userId, res) {
-  const [rows] = await pool.execute(
-    `SELECT r.request_id
-     FROM requests r
-     LEFT JOIN workspace_members wm
-       ON r.workspace_id = wm.workspace_id AND wm.user_id = ?
-     WHERE r.request_id = ?
-       AND (r.workspace_id IS NULL OR wm.user_id IS NOT NULL)`,
-    [userId, requestId]
-  );
-  if (rows.length === 0) {
-    res.status(404).json({ error: 'Request not found' });
-    return false;
-  }
-  return true;
-}
 
 // Serve static files from dist (Vite build output)
 app.use(express.static(path.join(__dirname, 'dist')));
@@ -1131,22 +1095,8 @@ app.get('/api/requests', async (req, res) => {
     const params = [];
 
     if (workspaceId) {
-      // Verify the requesting user is actually a member of the requested workspace
-      const [membership] = await pool.execute(
-        `SELECT 1 FROM workspace_members WHERE workspace_id = ? AND user_id = ?`,
-        [workspaceId, req.user.id]
-      );
-      if (membership.length === 0) {
-        return res.status(403).json({ error: 'Access denied' });
-      }
       query += ' AND r.workspace_id = ?';
       params.push(workspaceId);
-    } else {
-      // Scope to workspaces the user belongs to, plus legacy unscoped requests
-      query += ` AND (r.workspace_id IS NULL OR r.workspace_id IN (
-        SELECT workspace_id FROM workspace_members WHERE user_id = ?
-      ))`;
-      params.push(req.user.id);
     }
 
     if (status) {
@@ -1204,7 +1154,6 @@ app.get('/api/requests', async (req, res) => {
 // Get single request
 app.get('/api/requests/:id', async (req, res) => {
   try {
-    if (!await assertRequestAccess(req.params.id, req.user.id, res)) return;
 
     const [rows] = await pool.execute(
       `SELECT r.*,
@@ -1361,7 +1310,6 @@ app.post('/api/requests/public', publicSubmitLimiter, async (req, res) => {
 // Update request
 app.patch('/api/requests/:id', async (req, res) => {
   try {
-    if (!await assertRequestAccess(req.params.id, req.user.id, res)) return;
 
     const { title, description, priority, status, deadline_at, scheduled_at, owner_user_id, campaign_id, platform, content_type, department_id } = req.body;
 
@@ -1417,7 +1365,6 @@ app.patch('/api/requests/:id', async (req, res) => {
 // Submit request for approval
 app.post('/api/requests/:id/submit-for-approval', async (req, res) => {
   try {
-    if (!await assertRequestAccess(req.params.id, req.user.id, res)) return;
 
     const [result] = await pool.execute(
       `UPDATE requests SET status = 'in_review' WHERE request_id = ?`,
@@ -1893,7 +1840,6 @@ app.get('/api/approvals/pending', async (req, res) => {
 // ===== REQUEST COMMENTS (STUDIO VIEW) =====
 app.get('/api/requests/:id/comments', async (req, res) => {
   try {
-    if (!await assertRequestAccess(req.params.id, req.user.id, res)) return;
 
     const requestId = parseInt(req.params.id, 10);
     const [rows] = await pool.query(
@@ -1909,7 +1855,6 @@ app.get('/api/requests/:id/comments', async (req, res) => {
 
 app.post('/api/requests/:id/comments', async (req, res) => {
   try {
-    if (!await assertRequestAccess(req.params.id, req.user.id, res)) return;
 
     const requestId = parseInt(req.params.id, 10);
     const { body, pinX, pinY, author_name } = req.body;
@@ -1955,7 +1900,6 @@ const fetchRequestWithJoins = async (requestId) => {
 // Approve a request
 app.post('/api/requests/:id/approve', async (req, res) => {
   try {
-    if (!await assertRequestAccess(req.params.id, req.user.id, res)) return;
 
     const [result] = await pool.execute(
       `UPDATE requests SET status = 'approved' WHERE request_id = ?`,
@@ -1973,7 +1917,6 @@ app.post('/api/requests/:id/approve', async (req, res) => {
 // Reject / request changes on a request
 app.post('/api/requests/:id/reject', async (req, res) => {
   try {
-    if (!await assertRequestAccess(req.params.id, req.user.id, res)) return;
 
     const [result] = await pool.execute(
       `UPDATE requests SET status = 'changes_requested' WHERE request_id = ?`,
