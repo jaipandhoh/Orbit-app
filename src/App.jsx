@@ -25,6 +25,7 @@ import HelpView from './Views/HelpView.jsx';
 import ApprovalReviewModal from './ApprovalReviewModal.jsx';
 import PublicRequestView from './PublicRequestView.jsx';
 import MasterTodoView from './MasterTodoView.jsx';
+import AdminView from './AdminView.jsx';
 import { VIEWS, MODALS, DEFAULT_VIEW } from './routes.js';
 import { useAuth } from './context/AuthContext';
 import Login from './pages/Login';
@@ -801,6 +802,9 @@ const AppContent = () => {
             onViewBoard={() => navigate(VIEWS.BOARD)}
             onReviewApproval={(a) => { setReviewingApproval(a); openModal(MODALS.APPROVAL_REVIEW); }}
           />
+        )}
+        {currentView === VIEWS.ADMIN && (
+          <AdminView />
         )}
         {currentView === VIEWS.CAMPAIGNS && (
           <CampaignsView

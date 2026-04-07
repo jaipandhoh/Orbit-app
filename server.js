@@ -8,6 +8,7 @@ import cors from "cors";
 import helmet from "helmet";
 import workspacesRouter from "./routes/workspaces.js";
 import optionalAuth from "./middleware/optionalAuth.js";
+import authMiddleware from "./middleware/authMiddleware.js";
 import {
   apiLimiter,
   aiGenerateLimiter,
@@ -1964,6 +1965,42 @@ app.get('/api/todo', async (req, res) => {
     res.json(allItems);
   } catch (error) {
     console.error('Error fetching todo list:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ===== ADMIN ROUTES =====
+app.get('/api/admin/stats', authMiddleware, async (req, res) => {
+  try {
+    const adminEmails = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+    const userEmail = req.user?.email?.toLowerCase() || '';
+
+    if (!userEmail || !adminEmails.includes(userEmail)) {
+      console.warn(`[UNAUTHORIZED] Non-admin ${userEmail || 'unknown'} attempted to access admin stats`);
+      return res.status(403).json({ error: 'Access denied: Admins only' });
+    }
+
+    const [profilesRows] = await pool.execute('SELECT COUNT(*) as count FROM profiles');
+    const [workspacesRows] = await pool.execute('SELECT COUNT(*) as count FROM workspaces');
+    const [campaignsRows] = await pool.execute('SELECT COUNT(*) as count FROM campaigns');
+    const [postsRows] = await pool.execute('SELECT COUNT(*) as count FROM posts');
+    const [requestsRows] = await pool.execute('SELECT COUNT(*) as count FROM requests');
+    
+    // Recent users
+    const [recentUsersRows] = await pool.execute('SELECT id, name, email, created_at FROM profiles ORDER BY created_at DESC LIMIT 10');
+
+    res.json({
+      metrics: {
+        users: parseInt(profilesRows[0]?.count || 0),
+        workspaces: parseInt(workspacesRows[0]?.count || 0),
+        campaigns: parseInt(campaignsRows[0]?.count || 0),
+        posts: parseInt(postsRows[0]?.count || 0),
+        requests: parseInt(requestsRows[0]?.count || 0),
+      },
+      recentUsers: recentUsersRows
+    });
+  } catch (error) {
+    console.error('Error fetching admin stats:', error);
     res.status(500).json({ error: error.message });
   }
 });

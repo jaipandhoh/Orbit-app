@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   LayoutDashboard, Megaphone, Inbox, Trello, Calendar, Users,
-  Sun, Moon, Settings, ListTodo, LogOut, HelpCircle, ChevronDown,
+  Sun, Moon, Settings, ListTodo, LogOut, HelpCircle, ChevronDown, Shield
 } from 'lucide-react';
 import { VIEWS } from '../routes.js';
 import OrbitLogo from '../OrbitLogo';
@@ -139,6 +139,15 @@ const TopNav = ({ currentView, onNavigate, isDarkMode, onToggleTheme, onShowSett
                   <Settings size={15} className="text-mutedText" />
                   Settings
                 </button>
+                {import.meta.env.VITE_ADMIN_EMAILS?.includes(user?.email) && (
+                  <button
+                    onClick={() => { setMenuOpen(false); onNavigate(VIEWS.ADMIN); }}
+                    className="w-full flex items-center gap-3 px-4 py-2 text-sm text-text hover:bg-surface2 dark:hover:bg-surface2-dark transition-colors text-left"
+                  >
+                    <Shield size={15} className="text-mutedText" />
+                    Admin Dashboard
+                  </button>
+                )}
                 <button
                   onClick={() => { setMenuOpen(false); onNavigate(VIEWS.HELP); }}
                   className="w-full flex items-center gap-3 px-4 py-2 text-sm text-text hover:bg-surface2 dark:hover:bg-surface2-dark transition-colors text-left"
