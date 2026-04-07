@@ -128,19 +128,23 @@ app.use((req, res, next) => {
   next();
 });
 
-// CORS — only allow the known app origins
+// CORS — allow known origins (always include https:// variant of APP_URL)
+const rawAppUrl = process.env.APP_URL || '';
 const allowedOrigins = [
-  process.env.APP_URL,
+  rawAppUrl,
+  rawAppUrl.startsWith('https://') ? rawAppUrl : `https://${rawAppUrl}`,
   'http://localhost:5173',
   'http://localhost:3000',
 ].filter(Boolean);
 
 app.use(cors({
   origin: (origin, cb) => {
-    // Allow server-to-server / curl requests (no Origin header) only in dev
-    if (!origin && process.env.NODE_ENV !== 'production') return cb(null, true);
+    // No origin = direct navigation, curl, or same-domain request — always allow
+    if (!origin) return cb(null, true);
     if (allowedOrigins.includes(origin)) return cb(null, true);
-    cb(new Error(`CORS: origin ${origin} not allowed`));
+    // Unknown cross-origin: return false (no CORS headers) instead of throwing
+    // an error — this prevents 500s and lets the browser handle the block.
+    cb(null, false);
   },
   credentials: true,
 }));
