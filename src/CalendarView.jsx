@@ -1,6 +1,15 @@
 import React, { useMemo, useState } from 'react';
 import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
-import { getPlatformColor } from './utils';
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import { useDraggable, useDroppable } from '@dnd-kit/core';
+import { getPlatformColor, getPlatformAccentColor } from './utils';
 
 /** Return a Date set to midnight local time for a given date */
 const startOfDay = (d) => {
@@ -33,9 +42,7 @@ const getMonthGrid = (refDate) => {
   const firstOfMonth = new Date(year, month, 1);
   const lastOfMonth = new Date(year, month + 1, 0);
   const gridStart = startOfWeek(firstOfMonth);
-  // enough rows to cover the whole month
   const totalCells = Math.ceil((lastOfMonth.getDate() + gridStart.getDay()) / 7) * 7;
-  // at least 35 to avoid tiny grids
   const cells = Math.max(totalCells, 35);
   return Array.from({ length: cells }, (_, i) => {
     const d = new Date(gridStart);
@@ -50,14 +57,78 @@ const toKey = (d) =>
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
+/** Individual post chip — draggable */
+const PostChip = ({ post, isWeekView }) => {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: String(post.post_id),
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      className={`text-xs p-1.5 rounded border-l-4 ${getPlatformColor(post.platform)} ${getPlatformAccentColor(post.platform)} cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow touch-none ${
+        isDragging ? 'opacity-30' : ''
+      }`}
+    >
+      <div className="font-medium truncate">
+        {post.content?.substring(0, isWeekView ? 40 : 20) || 'Untitled post'}
+      </div>
+      <div className="text-[10px] opacity-75 mt-0.5 capitalize">{post.platform}</div>
+    </div>
+  );
+};
+
+/** Floating clone rendered while dragging */
+const DragChip = ({ post }) => (
+  <div
+    className={`text-xs p-1.5 rounded border-l-4 ${getPlatformColor(post.platform)} ${getPlatformAccentColor(post.platform)} shadow-xl rotate-2 cursor-grabbing`}
+  >
+    <div className="font-medium truncate max-w-[120px]">
+      {post.content?.substring(0, 30) || 'Untitled post'}
+    </div>
+    <div className="text-[10px] opacity-75 mt-0.5 capitalize">{post.platform}</div>
+  </div>
+);
+
+/** Day cell — droppable */
+const DayCell = ({ dateKey, isToday, isCurrentMonth, isWeekView, children }) => {
+  const { setNodeRef, isOver } = useDroppable({ id: dateKey });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`${isWeekView ? 'min-h-[160px]' : 'min-h-[100px]'} p-2 border rounded-lg transition-all ${
+        isOver
+          ? 'border-primary bg-primary/10 shadow-sm'
+          : isToday
+            ? 'border-primary bg-primary/5'
+            : isCurrentMonth || isWeekView
+              ? 'border-border bg-surface hover:border-primary/50 hover:shadow-sm'
+              : 'border-border/50 bg-surface2/50'
+      }`}
+    >
+      {children}
+    </div>
+  );
+};
+
 const CalendarView = ({
   posts,
   calendarView,
   onAddPost,
   onViewChange,
+  onPatchPost,
   isDarkMode = true,
 }) => {
   const [refDate, setRefDate] = useState(() => startOfDay(new Date()));
+  const [activePost, setActivePost] = useState(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+  );
 
   // Index posts by YYYY-MM-DD for O(1) lookup
   const postsByDate = useMemo(() => {
@@ -68,6 +139,13 @@ const CalendarView = ({
       const key = toKey(new Date(raw));
       (map[key] = map[key] || []).push(post);
     });
+    return map;
+  }, [posts]);
+
+  // Flat post lookup by id for drag overlay
+  const postsById = useMemo(() => {
+    const map = {};
+    (posts || []).forEach((p) => { map[p.post_id] = p; });
     return map;
   }, [posts]);
 
@@ -110,21 +188,46 @@ const CalendarView = ({
         })()
       : refDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
 
-  return (
-    <div className="space-y-6 animate-fadeIn">
-      {/* Page header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-h1 font-bold text-text">Content Calendar</h1>
-          <p className="text-mutedText mt-1">Plan and schedule your posts</p>
-        </div>
-        <button onClick={onAddPost} className="btn-primary flex items-center gap-2">
-          <Plus size={20} />
-          Add Post
-        </button>
-      </div>
+  const handleDragStart = ({ active }) => {
+    setActivePost(postsById[Number(active.id)] || null);
+  };
 
-      <div className="card">
+  const handleDragEnd = ({ active, over }) => {
+    setActivePost(null);
+    if (!over) return;
+
+    const postId = Number(active.id);
+    const targetDateKey = over.id; // YYYY-MM-DD — this is the droppable id
+
+    const post = postsById[postId];
+    if (!post) return;
+
+    const existingRaw = post.scheduled_at || post.published_at;
+    const currentKey = existingRaw ? toKey(new Date(existingRaw)) : null;
+    if (currentKey === targetDateKey) return;
+
+    // Preserve original time-of-day if available, otherwise default to noon
+    const [y, m, d] = targetDateKey.split('-').map(Number);
+    const existing = post.scheduled_at ? new Date(post.scheduled_at) : null;
+    const newDate = new Date(
+      y,
+      m - 1,
+      d,
+      existing ? existing.getHours() : 12,
+      existing ? existing.getMinutes() : 0,
+      0,
+    );
+
+    onPatchPost(postId, { scheduled_at: newDate.toISOString() });
+  };
+
+  return (
+    <DndContext
+      sensors={sensors}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
+      <div className="space-y-6">
         {/* Toolbar */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
@@ -174,7 +277,7 @@ const CalendarView = ({
         </div>
 
         {/* Day cells */}
-        <div className={`grid grid-cols-7 gap-2`}>
+        <div className="grid grid-cols-7 gap-2">
           {days.map((date, i) => {
             const key = toKey(date);
             const dayPosts = postsByDate[key] || [];
@@ -183,15 +286,12 @@ const CalendarView = ({
             const isWeekView = calendarView === 'week';
 
             return (
-              <div
+              <DayCell
                 key={i}
-                className={`${isWeekView ? 'min-h-[160px]' : 'min-h-[100px]'} p-2 border rounded-lg transition-all hover:border-primary/50 hover:shadow-sm ${
-                  isToday
-                    ? 'border-primary bg-primary/5'
-                    : isCurrentMonth || isWeekView
-                      ? 'border-border bg-surface'
-                      : 'border-border/50 bg-surface2/50'
-                }`}
+                dateKey={key}
+                isToday={isToday}
+                isCurrentMonth={isCurrentMonth}
+                isWeekView={isWeekView}
               >
                 <div
                   className={`text-sm font-medium mb-1 ${
@@ -208,25 +308,19 @@ const CalendarView = ({
                 </div>
                 <div className="space-y-1">
                   {dayPosts.map((post) => (
-                    <div
-                      key={post.post_id}
-                      className={`text-xs p-1.5 rounded ${getPlatformColor(post.platform)} cursor-pointer hover:shadow-md transition-shadow`}
-                    >
-                      <div className="font-medium truncate">
-                        {post.content?.substring(0, isWeekView ? 40 : 20) || 'Untitled post'}
-                      </div>
-                      {isWeekView && (
-                        <div className="text-[10px] opacity-75 mt-0.5 capitalize">{post.platform}</div>
-                      )}
-                    </div>
+                    <PostChip key={post.post_id} post={post} isWeekView={isWeekView} />
                   ))}
                 </div>
-              </div>
+              </DayCell>
             );
           })}
         </div>
       </div>
-    </div>
+
+      <DragOverlay>
+        {activePost ? <DragChip post={activePost} /> : null}
+      </DragOverlay>
+    </DndContext>
   );
 };
 

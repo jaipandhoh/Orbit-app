@@ -20,7 +20,7 @@ const NAV_ITEMS = [
   { id: 'dashboard', icon: BarChart3, label: 'Dashboard' },
   { id: 'inbox', icon: Inbox, label: 'Inbox' },
   { id: 'board', icon: LayoutGrid, label: 'Board' },
-  { id: 'calendar', icon: Calendar, label: 'Calendar' },
+  { id: 'posts', icon: Calendar, label: 'Posts' },
   { id: 'campaigns', icon: Target, label: 'Campaigns' },
   { id: 'contacts', icon: Users, label: 'Contacts' },
   { id: 'assets', icon: ImageIcon, label: 'Assets' },

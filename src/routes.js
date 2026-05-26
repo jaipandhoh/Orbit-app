@@ -4,7 +4,7 @@ export const VIEWS = {
   DASHBOARD: 'dashboard',
   INBOX: 'inbox',
   BOARD: 'board',
-  CALENDAR: 'calendar',
+  POSTS: 'posts',
   CAMPAIGNS: 'campaigns',
   CONTACTS: 'contacts',
   ASSETS: 'assets',
