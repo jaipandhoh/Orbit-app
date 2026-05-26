@@ -1,22 +1,39 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Server, Megaphone, CheckSquare, MessageSquare } from 'lucide-react';
+import { Users, Server, Megaphone, CheckSquare, MessageSquare, Lock } from 'lucide-react';
 import { useToast } from './ToastProvider';
+import { useAuth } from './context/AuthContext';
 
 const API_BASE = '/api';
 
 const AdminView = () => {
   const { toast } = useToast();
+  const { authFetch } = useAuth();
   const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [password, setPassword] = useState('');
 
   useEffect(() => {
-    fetchAdminStats();
-  }, []);
+    if (isAuthenticated) {
+      fetchAdminStats();
+    }
+  }, [isAuthenticated]);
+
+  const handleLogin = (e) => {
+    e.preventDefault();
+    const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD || 'adminorbit123';
+    if (password === adminPassword) {
+      setIsAuthenticated(true);
+    } else {
+      toast('Incorrect admin password', { type: 'error' });
+      setPassword('');
+    }
+  };
 
   const fetchAdminStats = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_BASE}/admin/stats`);
+      const res = await authFetch(`${API_BASE}/admin/stats`);
       if (!res.ok) throw new Error('Failed to fetch admin stats');
       const data = await res.json();
       setStats(data);
@@ -35,6 +52,38 @@ const AdminView = () => {
       hour: '2-digit', minute: '2-digit' 
     });
   };
+
+  if (!isAuthenticated) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 animate-fadeIn">
+        <div className="bg-surface dark:bg-surface-dark p-8 rounded-card border border-border dark:border-border-dark shadow-sm max-w-md w-full">
+          <div className="flex justify-center mb-6">
+            <div className="p-4 bg-primary/10 rounded-full text-primary">
+              <Lock size={32} />
+            </div>
+          </div>
+          <h2 className="text-h2 font-bold text-center text-text dark:text-white mb-2">Admin Access</h2>
+          <p className="text-center text-mutedText mb-6 text-sm">Please enter the admin password to continue.</p>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter password"
+                className="input w-full text-center dark:bg-surface2-dark dark:border-gray-700 dark:text-white"
+                required
+                autoFocus
+              />
+            </div>
+            <button type="submit" className="btn-primary w-full justify-center">
+              Access Dashboard
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
