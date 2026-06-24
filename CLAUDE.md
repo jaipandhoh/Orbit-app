@@ -99,13 +99,24 @@ src/
   lib/supabase.js          # Supabase client init
   context/AuthContext.jsx  # Auth state + workspace selection
   components/
-    SidebarNav.jsx         # Main navigation
-    TopNav.jsx             # Top bar
+    SidebarNav.jsx         # Main navigation (dark sidebar, green active state)
+    TopNav.jsx             # Top bar (legacy, replaced by SidebarNav in App.jsx)
     OnboardingTour.jsx     # First-run tour
     WorkspaceSwitcher.jsx  # Workspace dropdown
     PendingApprovals.jsx   # Approval widget
     ModalActions.jsx       # Shared modal footer buttons
     TemplateCard.jsx       # Template card component
+    ui/                    # Design system primitives (Pass 1)
+      index.js             # Barrel export
+      Button.jsx           # primary/secondary/ghost/danger, sm/md/lg
+      StatusPill.jsx       # Status indicator with colored dot
+      Card.jsx             # White card with border and hover shadow
+      Input.jsx            # Text input with optional icon
+      Avatar.jsx           # Initials avatar with deterministic color
+      PlatformIcon.jsx     # Platform brand circles + PlatformIconCluster
+      Table.jsx            # Composable Table/THead/TBody/TR/TH/TD
+      Tabs.jsx             # Horizontal text tabs with green underline
+      FilterPill.jsx       # Outlined button with icon + chevron
   Views/
     HelpView.jsx           # Help screen
   pages/
@@ -158,7 +169,8 @@ src/
 
 - **Routing**: `currentView` string in `App.jsx` state drives which view renders. All view/modal names are constants in `src/routes.js` — add new ones there first.
 - **API calls**: All fetch calls use `/api/...` (proxied to Express in dev, served directly in prod). No API client library — plain `fetch`.
-- **Styling**: Tailwind utility classes throughout. Dark mode via `dark:` prefix (class strategy). Custom design tokens (colors, spacing) configured in `tailwind.config.js`. Use existing class names like `text-text`, `text-mutedText`, `bg-surface`, `bg-surface2`, `border-border` rather than raw Tailwind colors.
+- **Styling (new design system)**: CSS custom properties defined on `:root` in `src/index.css` (e.g. `--color-bg`, `--color-accent`, `--color-fg-muted`). These are mirrored as Tailwind `ds-*` tokens (e.g. `text-ds-fg`, `bg-ds-accent`, `border-ds-border`). New pages should use `ds-*` tokens exclusively. Legacy pages still use old tokens (`text-text`, `bg-surface`, etc.) which remain in `tailwind.config.js` for backward compatibility. Font is Inter (loaded via Google Fonts in `index.html`). Dark mode is deferred — use light tokens only for now.
+- **Styling (legacy)**: Old Tailwind tokens (`text-text`, `text-mutedText`, `bg-surface`, `bg-surface2`, `border-border`, `primary=#6EA8FF`) still exist in `tailwind.config.js` for pages not yet redesigned. Do not use them in new code.
 - **No TypeScript**: Plain JSX throughout. PropTypes are not used either.
 - **Modal pattern**: Modals are rendered in `App.jsx` and controlled by `openModal` / `closeModal` state. Data is passed as props.
 - **db.js wrapper quirk**: Use `?` for query parameters (they are auto-converted to `$1/$2`). Mutations return `{ insertId, affectedRows }` to mimic mysql2 behavior, even though the DB is Postgres.
@@ -166,6 +178,9 @@ src/
 - **Drag-and-drop**: `@dnd-kit/core` + `@dnd-kit/sortable` are installed. Both `PointerSensor` and `TouchSensor` are configured on all drag contexts for mobile compatibility.
 - **Partial post update**: `PATCH /api/posts/:id` accepts `{ status, scheduled_at, published_at }` as a subset. Calendar drag patches `scheduled_at` only; Kanban drag patches `status` only. Status transition side-effects are deferred to Feature 2.
 - **ensureSchema() migration pattern**: `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` is used as a lightweight migration mechanism. Revisit and replace with a proper migration tool (e.g. node-pg-migrate) before the schema grows significantly.
+- **App shell layout**: `SidebarNav` (240px dark sidebar) is rendered in `App.jsx`. Main content sits in a `ml-60` container. The old `TopNav` is no longer rendered but kept in the codebase.
+- **Redesigned page pattern** (reference: `CampaignsView.jsx`): Page header (title + description + search + CTA), toolbar row (Tabs + FilterPill), data table using `Table` primitives, pagination footer. Future page redesigns should follow this structure and import from `src/components/ui/`.
+- **Sidebar nav items**: Campaigns, Ideas, Calendar, Contacts, Outreach, Coverage, Reports. Views for Ideas, Outreach, Coverage, Reports are stub constants in `routes.js` — pages not yet built.
 
 ## Principles (from roadmap)
 

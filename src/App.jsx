@@ -20,6 +20,7 @@ import AssetsView from './AssetsView.jsx';
 import SettingsPage from './SettingsPage.jsx';
 import { useToast } from './ToastProvider.jsx';
 import TopNav from './components/TopNav.jsx';
+import SidebarNav from './components/SidebarNav.jsx';
 import OnboardingTour, { shouldShowTour } from './components/OnboardingTour.jsx';
 import HelpView from './Views/HelpView.jsx';
 import ApprovalReviewModal from './ApprovalReviewModal.jsx';
@@ -789,17 +790,15 @@ const AppContent = () => {
   }
 
   return (
-    <div className={`min-h-screen bg-background dark:bg-background-dark`}>
-      <TopNav
+    <div className={`min-h-screen bg-[var(--color-bg)]`}>
+      <SidebarNav
         currentView={currentView}
         onNavigate={navigate}
-        isDarkMode={isDarkMode}
-        onToggleTheme={() => setIsDarkMode(!isDarkMode)}
         onShowSettings={() => navigate(VIEWS.SETTINGS)}
       />
 
       {/* Main Content */}
-      <div className="pt-20 px-6 pb-8 max-w-[1400px] mx-auto">
+      <div className="ml-60 px-8 py-8 max-w-[1200px]">
         {currentView === VIEWS.DASHBOARD && (
           <DashboardView
             transformedCampaigns={transformedCampaigns}
@@ -826,8 +825,8 @@ const AppContent = () => {
         {currentView === VIEWS.CAMPAIGNS && (
           <CampaignsView
             transformedCampaigns={transformedCampaigns}
+            posts={posts}
             loading={loading}
-            isDarkMode={isDarkMode}
             onNewCampaign={() => navigate(VIEWS.CAMPAIGN_PLANNING)}
             onCampaignClick={(campaign) => {
               setSelectedCampaign(campaign);

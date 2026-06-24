@@ -17,6 +17,12 @@ export const VIEWS = {
   TODO: 'todo',
   HELP: 'help',
   ADMIN: 'admin',
+  // New views (Pass 1)
+  IDEAS: 'ideas',
+  CALENDAR: 'calendar',
+  OUTREACH: 'outreach',
+  COVERAGE: 'coverage',
+  REPORTS: 'reports',
 };
 
 export const MODALS = {
@@ -29,4 +35,4 @@ export const MODALS = {
   APPROVAL_REVIEW: 'approval-review',
 };
 
-export const DEFAULT_VIEW = VIEWS.DASHBOARD;
+export const DEFAULT_VIEW = VIEWS.CAMPAIGNS;
