@@ -30,6 +30,18 @@ export const getStatusColor = (status) => {
   }
 };
 
+/** Returns a Tailwind border-left color class for platform chips.
+ *  Uses solid colors that work in both light and dark mode. */
+export const getPlatformAccentColor = (platform) => {
+  switch (platform?.toLowerCase()) {
+    case 'twitter':   return 'border-l-sky-400';
+    case 'linkedin':  return 'border-l-blue-500';
+    case 'instagram': return 'border-l-pink-500';
+    case 'facebook':  return 'border-l-indigo-500';
+    default:          return 'border-l-slate-400';
+  }
+};
+
 export const getPlatformColor = (platform) => {
   switch (platform?.toLowerCase()) {
     case 'twitter':

@@ -96,6 +96,10 @@ async function ensureSchema() {
   await pool.query(`ALTER TABLE approval_comments ADD COLUMN IF NOT EXISTS author_name VARCHAR(255) NULL`).catch(() => {});
   // Migrate: add workspace_id column to requests
   await pool.query(`ALTER TABLE requests ADD COLUMN IF NOT EXISTS workspace_id UUID REFERENCES workspaces(id) ON DELETE CASCADE`).catch((e) => console.log('workspace_id migration error:', e));
+  // Migrate: add status column to posts (Feature 1 — post views).
+  // Note: this uses ALTER TABLE IF NOT EXISTS as a lightweight migration pattern.
+  // Replace with a proper migration tool (e.g. node-pg-migrate) when the project adopts one.
+  await pool.query(`ALTER TABLE posts ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'scheduled', 'published'))`).catch(() => {});
 }
 
 function extractJsonFromText(text) {
@@ -1034,6 +1038,38 @@ app.put('/api/posts/:id', async (req, res) => {
   } catch (error) {
     console.error('Error updating post:', error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Partial-update post — used for drag-to-reschedule (patches scheduled_at)
+// and kanban column moves (patches status). Each drag type updates one field only;
+// status transition side-effects (e.g. auto-setting published_at) are intentionally
+// deferred to Feature 2.
+app.patch('/api/posts/:id', async (req, res) => {
+  try {
+    const allowed = ['status', 'scheduled_at', 'published_at'];
+    const fields = Object.keys(req.body).filter((k) => allowed.includes(k));
+    if (fields.length === 0) {
+      return res.status(400).json({ error: 'No patchable fields provided' });
+    }
+
+    const values = fields.map((f) => {
+      if (f === 'scheduled_at' || f === 'published_at') return toMysqlDate(req.body[f]);
+      return req.body[f];
+    });
+    const setClause = fields.map((f) => `${f} = ?`).join(', ');
+
+    const [result] = await pool.execute(
+      `UPDATE posts SET ${setClause} WHERE post_id = ?`,
+      [...values, req.params.id],
+    );
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Post not found' });
+
+    const [rows] = await pool.execute('SELECT * FROM posts WHERE post_id = ?', [req.params.id]);
+    res.json(rows[0]);
+  } catch (err) {
+    console.error('Error patching post:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 

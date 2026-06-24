@@ -2,10 +2,27 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Design System Tokens (Pass 1) ── */
+:root {
+  --color-bg: #FFFFFF;
+  --color-bg-subtle: #F5F5F5;
+  --color-sidebar: #0A0A0A;
+  --color-fg: #0A0A0A;
+  --color-fg-muted: #6B7280;
+  --color-fg-subtle: #9CA3AF;
+  --color-border: rgba(0, 0, 0, 0.08);
+  --color-border-strong: rgba(0, 0, 0, 0.16);
+  --color-accent: #22C55E;
+  --color-accent-subtle: #DCFCE7;
+  --color-accent-fg: #166534;
+}
+
 @layer base {
   body {
     @apply bg-background dark:bg-background-dark text-text dark:text-text-dark;
-    font-family: system-ui, -apple-system, sans-serif;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   .dark {
@@ -81,14 +98,6 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-}
-
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
 #root {

@@ -13,7 +13,7 @@ const NAV_LINKS = [
   { view: VIEWS.CAMPAIGNS, label: 'Campaigns', icon: Megaphone },
   { view: VIEWS.INBOX, label: 'Inbox', icon: Inbox },
   { view: VIEWS.BOARD, label: 'Board', icon: Trello },
-  { view: VIEWS.CALENDAR, label: 'Calendar', icon: Calendar },
+  { view: VIEWS.POSTS, label: 'Posts', icon: Calendar },
   { view: VIEWS.CONTACTS, label: 'Contacts', icon: Users },
   { view: VIEWS.TODO, label: 'To-Do', icon: ListTodo },
 ];

@@ -8,6 +8,7 @@ export default {
   theme: {
     extend: {
       colors: {
+        // Legacy tokens (keep for existing pages)
         background: "#F8FAFC",
         'background-dark': "#000000",
         surface: "#FFFFFF",
@@ -25,6 +26,19 @@ export default {
         danger: "#FF6B6B",
         success: "#49D49D",
         info: "#7DD3FC",
+
+        // New design system tokens
+        'ds-bg': 'var(--color-bg)',
+        'ds-bg-subtle': 'var(--color-bg-subtle)',
+        'ds-sidebar': 'var(--color-sidebar)',
+        'ds-fg': 'var(--color-fg)',
+        'ds-fg-muted': 'var(--color-fg-muted)',
+        'ds-fg-subtle': 'var(--color-fg-subtle)',
+        'ds-border': 'var(--color-border)',
+        'ds-border-strong': 'var(--color-border-strong)',
+        'ds-accent': 'var(--color-accent)',
+        'ds-accent-subtle': 'var(--color-accent-subtle)',
+        'ds-accent-fg': 'var(--color-accent-fg)',
       },
       fontSize: {
         h1: "28px",
@@ -48,4 +62,3 @@ export default {
   },
   plugins: [],
 }
-

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import DashboardView from './DashboardView';
 import CampaignsView from './CampaignsView';
-import CalendarView from './CalendarView';
+import PostsView from './PostsView';
 import ContactsView from './ContactsView';
 import CampaignDetail from './CampaignDetail';
 import TemplatesView from './TemplatesView';
@@ -20,6 +20,7 @@ import AssetsView from './AssetsView.jsx';
 import SettingsPage from './SettingsPage.jsx';
 import { useToast } from './ToastProvider.jsx';
 import TopNav from './components/TopNav.jsx';
+import SidebarNav from './components/SidebarNav.jsx';
 import OnboardingTour, { shouldShowTour } from './components/OnboardingTour.jsx';
 import HelpView from './Views/HelpView.jsx';
 import ApprovalReviewModal from './ApprovalReviewModal.jsx';
@@ -46,7 +47,6 @@ const AppContent = () => {
   const [editingContact, setEditingContact] = useState(null);
   const [editingDeliverable, setEditingDeliverable] = useState(null);
   const [deliverableCampaignId, setDeliverableCampaignId] = useState(null);
-  const [calendarView, setCalendarView] = useState('month');
   const [showOnboarding, setShowOnboarding] = useState(() => shouldShowTour());
   const [campaigns, setCampaigns] = useState([]);
   const [posts, setPosts] = useState([]);
@@ -437,6 +437,24 @@ const AppContent = () => {
     }
   };
 
+  // Optimistic partial update — used by calendar drag (scheduled_at) and kanban drag (status).
+  // Reverts on failure so the UI stays consistent with server state.
+  const handlePatchPost = async (id, patch) => {
+    const prev = posts;
+    setPosts((current) => current.map((p) => (p.post_id === id ? { ...p, ...patch } : p)));
+    try {
+      const res = await fetch(`${API_BASE}/posts/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      });
+      if (!res.ok) throw new Error('Failed to update post');
+    } catch (err) {
+      setPosts(prev);
+      toast('Failed to update post.', { type: 'error' });
+    }
+  };
+
   const handleDeletePost = async (id) => {
     try {
       const ok = window.confirm('Delete this post?');
@@ -772,17 +790,15 @@ const AppContent = () => {
   }
 
   return (
-    <div className={`min-h-screen bg-background dark:bg-background-dark`}>
-      <TopNav
+    <div className={`min-h-screen bg-[var(--color-bg)]`}>
+      <SidebarNav
         currentView={currentView}
         onNavigate={navigate}
-        isDarkMode={isDarkMode}
-        onToggleTheme={() => setIsDarkMode(!isDarkMode)}
         onShowSettings={() => navigate(VIEWS.SETTINGS)}
       />
 
       {/* Main Content */}
-      <div className="pt-20 px-6 pb-8 max-w-[1400px] mx-auto">
+      <div className="ml-60 px-8 py-8 max-w-[1200px]">
         {currentView === VIEWS.DASHBOARD && (
           <DashboardView
             transformedCampaigns={transformedCampaigns}
@@ -792,7 +808,7 @@ const AppContent = () => {
             approvals={approvals}
             onNewCampaign={() => navigate(VIEWS.CAMPAIGN_PLANNING)}
             onViewCampaigns={() => navigate(VIEWS.CAMPAIGNS)}
-            onViewCalendar={() => navigate(VIEWS.CALENDAR)}
+            onViewCalendar={() => navigate(VIEWS.POSTS)}
             onViewInsights={() => navigate(VIEWS.CAMPAIGNS)}
             onCampaignClick={(campaign) => {
               setSelectedCampaign(campaign);
@@ -809,8 +825,8 @@ const AppContent = () => {
         {currentView === VIEWS.CAMPAIGNS && (
           <CampaignsView
             transformedCampaigns={transformedCampaigns}
+            posts={posts}
             loading={loading}
-            isDarkMode={isDarkMode}
             onNewCampaign={() => navigate(VIEWS.CAMPAIGN_PLANNING)}
             onCampaignClick={(campaign) => {
               setSelectedCampaign(campaign);
@@ -823,16 +839,16 @@ const AppContent = () => {
             onDeleteCampaign={(id) => handleDeleteCampaign(id)}
           />
         )}
-        {currentView === VIEWS.CALENDAR && (
-          <CalendarView
+        {currentView === VIEWS.POSTS && (
+          <PostsView
             posts={posts}
-            calendarView={calendarView}
+            campaigns={campaigns}
             isDarkMode={isDarkMode}
             onAddPost={() => {
               setEditingPost(null);
               openModal(MODALS.POST_FORM);
             }}
-            onViewChange={(view) => setCalendarView(view)}
+            onPatchPost={handlePatchPost}
           />
         )}
         {currentView === VIEWS.INBOX && (
