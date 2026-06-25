@@ -17,7 +17,7 @@ import { useAuth } from '../context/AuthContext';
 const NAV_ITEMS = [
   { id: VIEWS.CAMPAIGNS, icon: Folder, label: 'Campaigns' },
   { id: VIEWS.IDEAS, icon: Lightbulb, label: 'Ideas' },
-  { id: VIEWS.CALENDAR, icon: Calendar, label: 'Calendar' },
+  { id: VIEWS.POSTS, icon: Calendar, label: 'Posts' },
   { id: VIEWS.CONTACTS, icon: Users, label: 'Contacts' },
   { id: VIEWS.OUTREACH, icon: Send, label: 'Outreach' },
   { id: VIEWS.COVERAGE, icon: Newspaper, label: 'Coverage' },

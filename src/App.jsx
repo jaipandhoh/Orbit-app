@@ -843,7 +843,6 @@ const AppContent = () => {
           <PostsView
             posts={posts}
             campaigns={campaigns}
-            isDarkMode={isDarkMode}
             onAddPost={() => {
               setEditingPost(null);
               openModal(MODALS.POST_FORM);

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   DndContext,
   DragOverlay,
@@ -9,7 +9,7 @@ import {
   useSensors,
 } from '@dnd-kit/core';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
-import { getPlatformColor, getPlatformAccentColor } from './utils';
+import { PlatformIcon } from './components/ui/PlatformIcon';
 
 /** Return a Date set to midnight local time for a given date */
 const startOfDay = (d) => {
@@ -68,27 +68,25 @@ const PostChip = ({ post, isWeekView }) => {
       ref={setNodeRef}
       {...listeners}
       {...attributes}
-      className={`text-xs p-1.5 rounded border-l-4 ${getPlatformColor(post.platform)} ${getPlatformAccentColor(post.platform)} cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow touch-none ${
+      className={`flex items-center gap-1.5 text-xs p-1.5 rounded-md bg-white border border-ds-border cursor-grab active:cursor-grabbing hover:shadow-sm transition-shadow touch-none ${
         isDragging ? 'opacity-30' : ''
       }`}
     >
-      <div className="font-medium truncate">
+      <PlatformIcon platform={post.platform} size={18} className="shrink-0" />
+      <span className="font-medium text-ds-fg truncate">
         {post.content?.substring(0, isWeekView ? 40 : 20) || 'Untitled post'}
-      </div>
-      <div className="text-[10px] opacity-75 mt-0.5 capitalize">{post.platform}</div>
+      </span>
     </div>
   );
 };
 
 /** Floating clone rendered while dragging */
 const DragChip = ({ post }) => (
-  <div
-    className={`text-xs p-1.5 rounded border-l-4 ${getPlatformColor(post.platform)} ${getPlatformAccentColor(post.platform)} shadow-xl rotate-2 cursor-grabbing`}
-  >
-    <div className="font-medium truncate max-w-[120px]">
+  <div className="flex items-center gap-1.5 text-xs p-1.5 rounded-md bg-white border border-ds-border shadow-xl rotate-2 cursor-grabbing">
+    <PlatformIcon platform={post.platform} size={18} className="shrink-0" />
+    <span className="font-medium text-ds-fg truncate max-w-[120px]">
       {post.content?.substring(0, 30) || 'Untitled post'}
-    </div>
-    <div className="text-[10px] opacity-75 mt-0.5 capitalize">{post.platform}</div>
+    </span>
   </div>
 );
 
@@ -101,12 +99,12 @@ const DayCell = ({ dateKey, isToday, isCurrentMonth, isWeekView, children }) => 
       ref={setNodeRef}
       className={`${isWeekView ? 'min-h-[160px]' : 'min-h-[100px]'} p-2 border rounded-lg transition-all ${
         isOver
-          ? 'border-primary bg-primary/10 shadow-sm'
+          ? 'border-ds-accent bg-ds-accent-subtle shadow-sm'
           : isToday
-            ? 'border-primary bg-primary/5'
+            ? 'border-ds-accent bg-ds-accent-subtle/30'
             : isCurrentMonth || isWeekView
-              ? 'border-border bg-surface hover:border-primary/50 hover:shadow-sm'
-              : 'border-border/50 bg-surface2/50'
+              ? 'border-ds-border bg-white hover:border-ds-border-strong hover:shadow-sm'
+              : 'border-ds-border/50 bg-ds-bg-subtle/50'
       }`}
     >
       {children}
@@ -117,10 +115,8 @@ const DayCell = ({ dateKey, isToday, isCurrentMonth, isWeekView, children }) => 
 const CalendarView = ({
   posts,
   calendarView,
-  onAddPost,
   onViewChange,
   onPatchPost,
-  isDarkMode = true,
 }) => {
   const [refDate, setRefDate] = useState(() => startOfDay(new Date()));
   const [activePost, setActivePost] = useState(null);
@@ -197,7 +193,7 @@ const CalendarView = ({
     if (!over) return;
 
     const postId = Number(active.id);
-    const targetDateKey = over.id; // YYYY-MM-DD — this is the droppable id
+    const targetDateKey = over.id;
 
     const post = postsById[postId];
     if (!post) return;
@@ -206,7 +202,6 @@ const CalendarView = ({
     const currentKey = existingRaw ? toKey(new Date(existingRaw)) : null;
     if (currentKey === targetDateKey) return;
 
-    // Preserve original time-of-day if available, otherwise default to noon
     const [y, m, d] = targetDateKey.split('-').map(Number);
     const existing = post.scheduled_at ? new Date(post.scheduled_at) : null;
     const newDate = new Date(
@@ -227,39 +222,39 @@ const CalendarView = ({
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="space-y-6">
-        {/* Toolbar */}
-        <div className="flex items-center justify-between mb-6">
+      <div className="space-y-4">
+        {/* Calendar toolbar — nav + week/month toggle */}
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button onClick={stepBack} className="p-2 rounded-lg border border-border hover:bg-surface2 transition-colors">
-              <ChevronLeft size={18} />
+            <button onClick={stepBack} className="p-2 rounded-lg border border-ds-border hover:bg-ds-bg-subtle transition-colors duration-150">
+              <ChevronLeft size={18} className="text-ds-fg-muted" />
             </button>
-            <h2 className="text-xl font-bold text-text min-w-[220px] text-center">{headerLabel}</h2>
-            <button onClick={stepForward} className="p-2 rounded-lg border border-border hover:bg-surface2 transition-colors">
-              <ChevronRight size={18} />
+            <h2 className="text-lg font-semibold text-ds-fg min-w-[220px] text-center">{headerLabel}</h2>
+            <button onClick={stepForward} className="p-2 rounded-lg border border-ds-border hover:bg-ds-bg-subtle transition-colors duration-150">
+              <ChevronRight size={18} className="text-ds-fg-muted" />
             </button>
-            <button onClick={goToday} className="ml-2 px-3 py-1 text-sm border border-border rounded-lg hover:bg-surface2 transition-colors text-text">
+            <button onClick={goToday} className="ml-2 px-3 py-1.5 text-sm font-medium border border-ds-border rounded-lg hover:bg-ds-bg-subtle transition-colors duration-150 text-ds-fg">
               Today
             </button>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex gap-1 border border-ds-border rounded-lg p-0.5">
             <button
               onClick={() => onViewChange('week')}
-              className={`px-4 py-2 border rounded-lg transition-colors ${
+              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors duration-150 ${
                 calendarView === 'week'
-                  ? 'bg-primary text-white border-primary'
-                  : 'border-border text-text hover:bg-surface2'
+                  ? 'bg-ds-accent text-white'
+                  : 'text-ds-fg-muted hover:text-ds-fg hover:bg-ds-bg-subtle'
               }`}
             >
               Week
             </button>
             <button
               onClick={() => onViewChange('month')}
-              className={`px-4 py-2 border rounded-lg transition-colors ${
+              className={`px-3 py-1.5 text-sm font-medium rounded-md transition-colors duration-150 ${
                 calendarView === 'month'
-                  ? 'bg-primary text-white border-primary'
-                  : 'border-border text-text hover:bg-surface2'
+                  ? 'bg-ds-accent text-white'
+                  : 'text-ds-fg-muted hover:text-ds-fg hover:bg-ds-bg-subtle'
               }`}
             >
               Month
@@ -268,9 +263,9 @@ const CalendarView = ({
         </div>
 
         {/* Day-of-week header */}
-        <div className="grid grid-cols-7 gap-2 mb-2">
+        <div className="grid grid-cols-7 gap-2">
           {DAY_LABELS.map((label) => (
-            <div key={label} className="text-center text-sm font-semibold text-mutedText py-2">
+            <div key={label} className="text-center text-xs font-semibold uppercase tracking-wider text-ds-fg-muted py-2">
               {label}
             </div>
           ))}
@@ -296,10 +291,10 @@ const CalendarView = ({
                 <div
                   className={`text-sm font-medium mb-1 ${
                     isToday
-                      ? 'text-primary font-bold'
+                      ? 'text-ds-accent font-bold'
                       : isCurrentMonth || isWeekView
-                        ? 'text-text'
-                        : 'text-mutedText'
+                        ? 'text-ds-fg'
+                        : 'text-ds-fg-subtle'
                   }`}
                 >
                   {isWeekView

@@ -7,3 +7,4 @@ export { default as PlatformIcon, PlatformIconCluster } from './PlatformIcon';
 export { Table, THead, TBody, TR, TH, TD } from './Table';
 export { default as Tabs } from './Tabs';
 export { default as FilterPill } from './FilterPill';
+export { default as Select } from './Select';

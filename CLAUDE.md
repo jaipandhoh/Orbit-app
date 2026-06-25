@@ -117,6 +117,7 @@ src/
       Table.jsx            # Composable Table/THead/TBody/TR/TH/TD
       Tabs.jsx             # Horizontal text tabs with green underline
       FilterPill.jsx       # Outlined button with icon + chevron
+      Select.jsx           # Native select with ds-* styling, matches Input
   Views/
     HelpView.jsx           # Help screen
   pages/
@@ -130,9 +131,10 @@ src/
   DashboardView.jsx        # Home dashboard
   CampaignsView.jsx        # Campaign list
   CampaignDetail.jsx       # Single campaign detail
-  PostsView.jsx            # Posts page: view-switcher wrapper (calendar vs kanban)
+  PostsView.jsx            # Posts page: view-switcher wrapper (kanban/calendar/list), URL param sync
   CalendarView.jsx         # Calendar (week/month) of posts with drag-to-reschedule
   PostsKanbanView.jsx      # Kanban board of posts (Draft / Scheduled / Published columns)
+  PostsListView.jsx        # Table view of posts using Table primitives
   BoardView.jsx            # Kanban board of requests (separate from posts)
   ContactsView.jsx         # Contacts list
   InboxView.jsx            # Inbox / notifications
@@ -180,7 +182,9 @@ src/
 - **ensureSchema() migration pattern**: `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` is used as a lightweight migration mechanism. Revisit and replace with a proper migration tool (e.g. node-pg-migrate) before the schema grows significantly.
 - **App shell layout**: `SidebarNav` (240px dark sidebar) is rendered in `App.jsx`. Main content sits in a `ml-60` container. The old `TopNav` is no longer rendered but kept in the codebase.
 - **Redesigned page pattern** (reference: `CampaignsView.jsx`): Page header (title + description + search + CTA), toolbar row (Tabs + FilterPill), data table using `Table` primitives, pagination footer. Future page redesigns should follow this structure and import from `src/components/ui/`.
-- **Sidebar nav items**: Campaigns, Ideas, Calendar, Contacts, Outreach, Coverage, Reports. Views for Ideas, Outreach, Coverage, Reports are stub constants in `routes.js` — pages not yet built.
+- **Sidebar nav items**: Campaigns, Ideas, Posts, Contacts, Outreach, Coverage, Reports. Views for Ideas, Outreach, Coverage, Reports are stub constants in `routes.js` — pages not yet built. The old `VIEWS.CALENDAR` constant was removed; the Calendar sidebar entry was replaced by Posts.
+- **Posts page URL param sync**: `PostsView` reads `?view=kanban|calendar|list` from the URL on mount and defaults to `kanban`. Tab clicks update the URL via `history.replaceState()` so deep links (e.g. `/posts?view=calendar`) are honored. Domain-specific view components (`CalendarView`, `PostsKanbanView`, `PostsListView`) live flat in `src/`, not in `ui/`, since they contain business logic.
+- **Campaign filter on Posts page**: A `Select` dropdown in the toolbar filters posts by `campaign_id`. Default "All campaigns" shows everything. The `Select` primitive in `ui/` is a native `<select>` styled to match `Input`.
 
 ## Principles (from roadmap)
 
