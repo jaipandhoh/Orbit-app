@@ -8,10 +8,9 @@ import {
   useSensors,
 } from '@dnd-kit/core';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
-import { getPlatformColor, getPlatformAccentColor } from './utils';
+import { Card, StatusPill } from './components/ui';
+import { PlatformIcon } from './components/ui/PlatformIcon';
 
-// Column droppable IDs match the posts.status enum values exactly.
-// The over.id → status mapping depends on this — do not use display labels here.
 const COLUMNS = [
   { id: 'draft',     label: 'Draft' },
   { id: 'scheduled', label: 'Scheduled' },
@@ -34,60 +33,52 @@ const PostCard = ({ post, campaignName }) => {
   const dateStr = formatDate(post.scheduled_at);
 
   return (
-    <div
+    <Card
       ref={setNodeRef}
       {...listeners}
       {...attributes}
-      className={`card border-l-4 ${getPlatformAccentColor(post.platform)} cursor-grab active:cursor-grabbing touch-none transition-shadow ${
-        isDragging ? 'opacity-30' : 'hover:shadow-md'
+      className={`p-3 cursor-grab active:cursor-grabbing touch-none ${
+        isDragging ? 'opacity-30' : ''
       }`}
     >
-      {/* Content preview */}
-      <p className="text-sm text-text leading-snug line-clamp-2 mb-2">
+      <p className="text-sm text-ds-fg leading-snug line-clamp-2 mb-3">
         {post.content || 'Untitled post'}
       </p>
 
-      {/* Footer */}
       <div className="flex items-center justify-between gap-2 flex-wrap">
-        <span
-          className={`text-xs px-2 py-0.5 rounded-full font-medium ${getPlatformColor(post.platform)}`}
-        >
-          {post.platform}
-        </span>
-        <div className="flex items-center gap-2 text-xs text-mutedText">
+        <PlatformIcon platform={post.platform} size={22} />
+        <div className="flex items-center gap-2 text-xs text-ds-fg-muted">
           {campaignName && <span className="truncate max-w-[100px]">{campaignName}</span>}
           {dateStr && <span>{dateStr}</span>}
         </div>
       </div>
-    </div>
+    </Card>
   );
 };
 
 /** Floating clone rendered while dragging */
 const DragCard = ({ post }) => (
-  <div
-    className={`card border-l-4 ${getPlatformAccentColor(post.platform)} shadow-xl rotate-1 cursor-grabbing w-64`}
-  >
-    <p className="text-sm text-text line-clamp-2">{post.content || 'Untitled post'}</p>
-    <span className={`text-xs px-2 py-0.5 rounded-full font-medium mt-2 inline-block ${getPlatformColor(post.platform)}`}>
-      {post.platform}
-    </span>
-  </div>
+  <Card className="p-3 shadow-xl rotate-1 cursor-grabbing w-64">
+    <p className="text-sm text-ds-fg line-clamp-2 mb-2">{post.content || 'Untitled post'}</p>
+    <PlatformIcon platform={post.platform} size={22} />
+  </Card>
 );
 
 /** Kanban column — droppable */
-const Column = ({ column, posts, campaigns }) => {
+const KanbanColumn = ({ column, posts, campaigns }) => {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
 
   const campaignMap = {};
   (campaigns || []).forEach((c) => { campaignMap[c.campaign_id] = c.title; });
 
   return (
-    <div className="flex-shrink-0 w-72">
+    <div className="flex-1 min-w-[240px]">
       {/* Column header */}
       <div className="flex items-center justify-between mb-3 px-1">
-        <h3 className="text-sm font-semibold text-text">{column.label}</h3>
-        <span className="text-xs font-semibold text-mutedText bg-surface2 rounded-full px-2 py-0.5">
+        <div className="flex items-center gap-2">
+          <StatusPill status={column.id} label={column.label} />
+        </div>
+        <span className="text-xs font-semibold text-ds-fg-muted bg-ds-bg-subtle rounded-full px-2 py-0.5">
           {posts.length}
         </span>
       </div>
@@ -95,8 +86,8 @@ const Column = ({ column, posts, campaigns }) => {
       {/* Cards */}
       <div
         ref={setNodeRef}
-        className={`space-y-2.5 min-h-[200px] p-2 rounded-lg transition-colors ${
-          isOver ? 'bg-primary/5 ring-1 ring-primary/30' : 'bg-surface2/40'
+        className={`space-y-2.5 min-h-[200px] p-2 rounded-lg transition-colors duration-150 ${
+          isOver ? 'bg-ds-accent-subtle ring-1 ring-ds-accent/30' : 'bg-ds-bg-subtle/60'
         }`}
       >
         {posts.map((post) => (
@@ -108,8 +99,8 @@ const Column = ({ column, posts, campaigns }) => {
         ))}
 
         {posts.length === 0 && (
-          <div className="border-2 border-dashed border-border rounded-control h-20 flex items-center justify-center">
-            <span className="text-xs text-mutedText/50">Empty</span>
+          <div className="border-2 border-dashed border-ds-border rounded-lg h-20 flex items-center justify-center">
+            <span className="text-xs text-ds-fg-subtle">No posts</span>
           </div>
         )}
       </div>
@@ -137,13 +128,11 @@ const PostsKanbanView = ({ posts = [], campaigns = [], onPatchPost }) => {
     if (!over) return;
 
     const postId = Number(active.id);
-    const newStatus = over.id; // droppable id === status enum value ('draft' | 'scheduled' | 'published')
+    const newStatus = over.id;
 
     const post = postsById[postId];
     if (!post || post.status === newStatus) return;
 
-    // Kanban drag updates status only. Transition side-effects (e.g. setting
-    // published_at when moving to 'published') are intentionally deferred to Feature 2.
     onPatchPost(postId, { status: newStatus });
   };
 
@@ -153,9 +142,9 @@ const PostsKanbanView = ({ posts = [], campaigns = [], onPatchPost }) => {
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex gap-5 overflow-x-auto pb-6">
+      <div className="flex gap-4 overflow-x-auto pb-4">
         {COLUMNS.map((col) => (
-          <Column
+          <KanbanColumn
             key={col.id}
             column={col}
             posts={posts.filter((p) => (p.status || 'draft') === col.id)}

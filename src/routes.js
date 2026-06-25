@@ -19,7 +19,6 @@ export const VIEWS = {
   ADMIN: 'admin',
   // New views (Pass 1)
   IDEAS: 'ideas',
-  CALENDAR: 'calendar',
   OUTREACH: 'outreach',
   COVERAGE: 'coverage',
   REPORTS: 'reports',
