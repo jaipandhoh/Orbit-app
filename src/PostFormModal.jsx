@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import ModalActions from './components/ModalActions.jsx';
+import { POST_STATUSES } from './constants/postStatus';
 
 const PostFormModal = ({ post, campaigns, onClose, onCreate, onUpdate }) => {
   const [formData, setFormData] = useState({
     campaign_id: post?.campaign_id || campaigns[0]?.campaign_id || '',
     platform: post?.platform || 'twitter',
+    status: post?.status || 'idea',
     content: post?.content || '',
     scheduled_at: post?.scheduled_at || '',
     published_at: post?.published_at || '',
@@ -63,6 +65,18 @@ const PostFormModal = ({ post, campaigns, onClose, onCreate, onUpdate }) => {
               <option value="instagram">Instagram</option>
               <option value="facebook">Facebook</option>
               <option value="tiktok">TikTok</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-text dark:text-white mb-1">Status</label>
+            <select
+              value={formData.status}
+              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              {POST_STATUSES.map((s) => (
+                <option key={s.value} value={s.value}>{s.label}</option>
+              ))}
             </select>
           </div>
           <div>

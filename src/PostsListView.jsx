@@ -50,7 +50,7 @@ const PostsListView = ({ posts = [], campaigns = [] }) => {
                 </div>
               </TD>
               <TD>
-                <StatusPill status={post.status || 'draft'} />
+                <StatusPill status={post.status || 'idea'} />
               </TD>
               <TD>
                 <span className="text-sm text-ds-fg-muted truncate max-w-[140px] block">

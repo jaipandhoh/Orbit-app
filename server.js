@@ -9,6 +9,7 @@ import helmet from "helmet";
 import workspacesRouter from "./routes/workspaces.js";
 import optionalAuth from "./middleware/optionalAuth.js";
 import authMiddleware from "./middleware/authMiddleware.js";
+import jwt from "jsonwebtoken";
 import {
   apiLimiter,
   aiGenerateLimiter,
@@ -99,7 +100,14 @@ async function ensureSchema() {
   // Migrate: add status column to posts (Feature 1 — post views).
   // Note: this uses ALTER TABLE IF NOT EXISTS as a lightweight migration pattern.
   // Replace with a proper migration tool (e.g. node-pg-migrate) when the project adopts one.
-  await pool.query(`ALTER TABLE posts ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'scheduled', 'published'))`).catch(() => {});
+  await pool.query(`ALTER TABLE posts ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'idea'`).catch(() => {});
+
+  // Feature 2: expand status from 3 values (draft/scheduled/published) to 7.
+  await pool.query(`ALTER TABLE posts DROP CONSTRAINT IF EXISTS posts_status_check`).catch(() => {});
+  await pool.query(`UPDATE posts SET status = 'idea' WHERE status NOT IN ('idea','approved','drafting','in_review','scheduled','published','reported')`).catch(() => {});
+  await pool.query(`ALTER TABLE posts ADD CONSTRAINT posts_status_check CHECK (status IN ('idea','approved','drafting','in_review','scheduled','published','reported'))`).catch(() => {});
+  await pool.query(`ALTER TABLE posts ALTER COLUMN status SET DEFAULT 'idea'`).catch(() => {});
+  await pool.query(`ALTER TABLE posts ADD COLUMN IF NOT EXISTS results_due_at TIMESTAMPTZ`).catch(() => {});
 }
 
 function extractJsonFromText(text) {
@@ -164,6 +172,90 @@ app.use('/api', apiLimiter);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Local mock auth routes
+app.post("/api/auth/signup", async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ error: "Email and password are required" });
+  }
+
+  try {
+    const [existing] = await pool.query(
+      "SELECT id FROM auth.users WHERE email = ?",
+      [email.trim().toLowerCase()]
+    );
+    if (existing.length > 0) {
+      return res.status(409).json({ error: "User already exists" });
+    }
+
+    await pool.query(
+      "INSERT INTO auth.users (email, password) VALUES (?, ?)",
+      [email.trim().toLowerCase(), password]
+    );
+
+    const [users] = await pool.query(
+      "SELECT id, email FROM auth.users WHERE email = ?",
+      [email.trim().toLowerCase()]
+    );
+    const user = users[0];
+
+    res.status(201).json({ user });
+  } catch (err) {
+    console.error("[signup]", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/auth/login", async (req, res) => {
+  const { email, password } = req.body;
+  if (!email || !password) {
+    return res.status(400).json({ error: "Email and password are required" });
+  }
+
+  try {
+    const [users] = await pool.query(
+      "SELECT id, email, password FROM auth.users WHERE email = ?",
+      [email.trim().toLowerCase()]
+    );
+    if (users.length === 0 || users[0].password !== password) {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+
+    const user = users[0];
+    const jwtSecret = process.env.SUPABASE_JWT_SECRET;
+    if (!jwtSecret) {
+      return res.status(500).json({ error: "JWT secret not configured" });
+    }
+
+    const token = jwt.sign(
+      {
+        sub: user.id,
+        email: user.email,
+        role: "authenticated",
+        iss: "supabase",
+      },
+      jwtSecret,
+      { algorithm: "HS256", expiresIn: "24h" }
+    );
+
+    res.json({
+      session: {
+        access_token: token,
+        token_type: "bearer",
+        expires_in: 86400,
+        user: {
+          id: user.id,
+          email: user.email,
+          role: "authenticated",
+        },
+      },
+    });
+  } catch (err) {
+    console.error("[login]", err);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // Workspace routes (auth required — see middleware/authMiddleware.js)
 app.use('/api/workspaces', workspacesRouter);
@@ -966,7 +1058,7 @@ app.get('/api/posts/:id', async (req, res) => {
 // Create post
 app.post('/api/posts', async (req, res) => {
   try {
-    const { campaign_id, platform, content, scheduled_at, published_at, impressions, clicks } = req.body;
+    const { campaign_id, platform, content, status, scheduled_at, published_at, impressions, clicks } = req.body;
 
     if (!campaign_id || !platform || !content) {
       return res.status(400).json({ error: 'campaign_id, platform, and content are required' });
@@ -976,12 +1068,13 @@ app.post('/api/posts', async (req, res) => {
     const publishedAt = toMysqlDate(published_at);
 
     const [result] = await pool.execute(
-      `INSERT INTO posts (campaign_id, platform, content, scheduled_at, published_at, impressions, clicks)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO posts (campaign_id, platform, content, status, scheduled_at, published_at, impressions, clicks)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         campaign_id,
         platform,
         content,
+        status || 'idea',
         scheduledAt,
         publishedAt,
         impressions || 0,
@@ -1004,19 +1097,20 @@ app.post('/api/posts', async (req, res) => {
 // Update post
 app.put('/api/posts/:id', async (req, res) => {
   try {
-    const { campaign_id, platform, content, scheduled_at, published_at, impressions, clicks } = req.body;
+    const { campaign_id, platform, content, status, scheduled_at, published_at, impressions, clicks } = req.body;
 
     const scheduledAt = toMysqlDate(scheduled_at);
     const publishedAt = toMysqlDate(published_at);
 
     const [result] = await pool.execute(
-      `UPDATE posts 
-             SET campaign_id = ?, platform = ?, content = ?, scheduled_at = ?, published_at = ?, impressions = ?, clicks = ?
+      `UPDATE posts
+             SET campaign_id = ?, platform = ?, content = ?, status = ?, scheduled_at = ?, published_at = ?, impressions = ?, clicks = ?
              WHERE post_id = ?`,
       [
         campaign_id,
         platform,
         content,
+        status || 'idea',
         scheduledAt,
         publishedAt,
         impressions || 0,
@@ -1042,9 +1136,8 @@ app.put('/api/posts/:id', async (req, res) => {
 });
 
 // Partial-update post — used for drag-to-reschedule (patches scheduled_at)
-// and kanban column moves (patches status). Each drag type updates one field only;
-// status transition side-effects (e.g. auto-setting published_at) are intentionally
-// deferred to Feature 2.
+// and kanban column moves (patches status).
+// Feature 2: auto-follow-up on publish — sets published_at and results_due_at server-side.
 app.patch('/api/posts/:id', async (req, res) => {
   try {
     const allowed = ['status', 'scheduled_at', 'published_at'];
@@ -1053,15 +1146,35 @@ app.patch('/api/posts/:id', async (req, res) => {
       return res.status(400).json({ error: 'No patchable fields provided' });
     }
 
+    // Fetch current row to check published_at for auto-follow-up logic
+    const [currentRows] = await pool.execute('SELECT * FROM posts WHERE post_id = ?', [req.params.id]);
+    if (currentRows.length === 0) return res.status(404).json({ error: 'Post not found' });
+    const currentPost = currentRows[0];
+
     const values = fields.map((f) => {
       if (f === 'scheduled_at' || f === 'published_at') return toMysqlDate(req.body[f]);
       return req.body[f];
     });
     const setClause = fields.map((f) => `${f} = ?`).join(', ');
 
+    // Auto-follow-up: when status transitions to 'published', set published_at and results_due_at
+    // if published_at is null or older than 24 hours. When status moves away from 'published',
+    // clear results_due_at but preserve published_at.
+    let extraSet = '';
+    const extraValues = [];
+    if (req.body.status === 'published') {
+      const pubAt = currentPost.published_at ? new Date(currentPost.published_at) : null;
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      if (!pubAt || pubAt < twentyFourHoursAgo) {
+        extraSet = ', published_at = NOW(), results_due_at = NOW() + INTERVAL \'7 days\'';
+      }
+    } else if (req.body.status && req.body.status !== 'published' && currentPost.results_due_at) {
+      extraSet = ', results_due_at = NULL';
+    }
+
     const [result] = await pool.execute(
-      `UPDATE posts SET ${setClause} WHERE post_id = ?`,
-      [...values, req.params.id],
+      `UPDATE posts SET ${setClause}${extraSet} WHERE post_id = ?`,
+      [...values, ...extraValues, req.params.id],
     );
     if (result.affectedRows === 0) return res.status(404).json({ error: 'Post not found' });
 

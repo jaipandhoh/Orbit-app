@@ -16,7 +16,11 @@ const pgPool = new Pool({
   // Supabase (and most hosted Postgres) require SSL.
   // rejectUnauthorized:false accepts Supabase's CA-signed cert without
   // needing to bundle a root certificate.
-  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
+  ssl: (process.env.DATABASE_URL &&
+        !process.env.DATABASE_URL.includes("localhost") &&
+        !process.env.DATABASE_URL.includes("127.0.0.1"))
+    ? { rejectUnauthorized: false }
+    : false,
 });
 
 function convertQuery(sql) {

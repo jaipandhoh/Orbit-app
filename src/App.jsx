@@ -441,6 +441,7 @@ const AppContent = () => {
   // Reverts on failure so the UI stays consistent with server state.
   const handlePatchPost = async (id, patch) => {
     const prev = posts;
+    const post = posts.find((p) => p.post_id === id);
     setPosts((current) => current.map((p) => (p.post_id === id ? { ...p, ...patch } : p)));
     try {
       const res = await fetch(`${API_BASE}/posts/${id}`, {
@@ -449,6 +450,18 @@ const AppContent = () => {
         body: JSON.stringify(patch),
       });
       if (!res.ok) throw new Error('Failed to update post');
+
+      // Fire publish toast only when: patch sets status to 'published' AND the post's
+      // current published_at is null or older than 24 hours. This matches the server-side
+      // condition for setting published_at/results_due_at, preventing double-fire on
+      // drag-mistake-redrag within 24 hours.
+      if (patch.status === 'published' && post) {
+        const pubAt = post.published_at ? new Date(post.published_at) : null;
+        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        if (!pubAt || pubAt < twentyFourHoursAgo) {
+          toast("Published. We'll remind you to log results in 7 days.", { type: 'success' });
+        }
+      }
     } catch (err) {
       setPosts(prev);
       toast('Failed to update post.', { type: 'error' });

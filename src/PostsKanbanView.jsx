@@ -10,12 +10,9 @@ import {
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { Card, StatusPill } from './components/ui';
 import { PlatformIcon } from './components/ui/PlatformIcon';
+import { POST_STATUSES } from './constants/postStatus';
 
-const COLUMNS = [
-  { id: 'draft',     label: 'Draft' },
-  { id: 'scheduled', label: 'Scheduled' },
-  { id: 'published', label: 'Published' },
-];
+const COLUMNS = POST_STATUSES.map(s => ({ id: s.value, label: s.label }));
 
 const formatDate = (value) => {
   if (!value) return null;
@@ -147,7 +144,7 @@ const PostsKanbanView = ({ posts = [], campaigns = [], onPatchPost }) => {
           <KanbanColumn
             key={col.id}
             column={col}
-            posts={posts.filter((p) => (p.status || 'draft') === col.id)}
+            posts={posts.filter((p) => (p.status || 'idea') === col.id)}
             campaigns={campaigns}
           />
         ))}
