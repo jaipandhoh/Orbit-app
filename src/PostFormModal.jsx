@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import ModalActions from './components/ModalActions.jsx';
 import { POST_STATUSES } from './constants/postStatus';
+import CommentsThread from './components/CommentsThread';
 
 const PostFormModal = ({ post, campaigns, onClose, onCreate, onUpdate }) => {
   const [formData, setFormData] = useState({
@@ -135,6 +136,11 @@ const PostFormModal = ({ post, campaigns, onClose, onCreate, onUpdate }) => {
             onSecondary={onClose}
           />
         </form>
+        {post && (
+          <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+            <CommentsThread entityType="post" entityId={post.post_id} />
+          </div>
+        )}
       </div>
     </div>
   );

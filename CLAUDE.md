@@ -76,6 +76,7 @@ Additional tables created by `ensureSchema()` in `server.js`:
 | `approvals` | Per-post/request approval records (`status`, `feedback`) |
 | `approval_comments` | Comments on approval threads |
 | `workspaces` | Multi-tenant workspace support |
+| `comments` | Polymorphic comments on campaigns/posts (`entity_type`, `entity_id`, `author_id`, `author_name`, `body`) |
 
 Complex data (plan JSON, approval stages, rule conditions) is stored in JSON columns.
 
@@ -106,6 +107,7 @@ src/
     PendingApprovals.jsx   # Approval widget
     ModalActions.jsx       # Shared modal footer buttons
     TemplateCard.jsx       # Template card component
+    CommentsThread.jsx     # Self-fetching comment thread (entityType + entityId props)
     ui/                    # Design system primitives (Pass 1)
       index.js             # Barrel export
       Button.jsx           # primary/secondary/ghost/danger, sm/md/lg
@@ -118,6 +120,7 @@ src/
       Tabs.jsx             # Horizontal text tabs with green underline
       FilterPill.jsx       # Outlined button with icon + chevron
       Select.jsx           # Native select with ds-* styling, matches Input
+      Textarea.jsx         # Multiline text input with ds-* styling, matches Input
     dashboard/             # Dashboard section components (Feature 3)
       DueThisWeek.jsx      # Posts with scheduled_at in next 7 days
       AwaitingReview.jsx   # Posts with status = 'in_review'
@@ -195,6 +198,9 @@ src/
 - **Campaign filter on Posts page**: A `Select` dropdown in the toolbar filters posts by `campaign_id`. Default "All campaigns" shows everything. The `Select` primitive in `ui/` is a native `<select>` styled to match `Input`.
 - **Dashboard (Feature 3)**: Default landing page (`DEFAULT_VIEW = VIEWS.DASHBOARD` in `routes.js`). Fetches all data from `GET /api/dashboard` (single endpoint, 4 parallel queries server-side). Section components in `src/components/dashboard/` are self-contained — each receives its data array as a prop. DashboardView manages its own fetch lifecycle (loading/error/data) rather than relying on App.jsx centralized state. Legacy dashboard files (`DashboardWidgets.jsx`, `WeeklyFocusBanner.jsx`) are no longer imported but remain in the codebase.
 - **`posts.updated_at` column**: Added via `ensureSchema()`. Nullable, defaults to `CURRENT_TIMESTAMP`. Used for ordering in the "Awaiting review" dashboard query.
+- **Comments (Feature 4)**: Polymorphic `comments` table keyed by `(entity_type, entity_id)` — supports 'campaign' and 'post'. `CommentsThread` component (`src/components/CommentsThread.jsx`) self-fetches its data given `entityType` and `entityId` props. Uses optimistic updates for POST (append + reconcile) and DELETE (remove + restore on failure). Integrated at the bottom of `CampaignDetail.jsx` and `PostFormModal.jsx` (edit mode only).
+- **Solo-user auth seam**: `SOLO_USER = { id: '1', name: 'Solo User' }` constant in `server.js` fills `author_id`/`author_name` on comment creation and checks ownership on delete. Client-side mirror in `CommentsThread.jsx`. Replace both with session lookup when real auth lands.
+- **Textarea primitive**: `src/components/ui/Textarea.jsx` — styled `<textarea>` matching Input's ds-* tokens. Exported from `ui/index.js`. Existing inline textareas across the codebase have not been migrated yet.
 
 ## Principles (from roadmap)
 

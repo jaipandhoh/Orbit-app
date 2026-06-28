@@ -25,6 +25,9 @@ const PORT = process.env.PORT || 3000;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-1.5-flash";
 
+// Solo-user constant — replace with session lookup when real auth lands.
+const SOLO_USER = { id: '1', name: 'Solo User' };
+
 let campaigns = [];
 let posts = [];
 
@@ -109,6 +112,20 @@ async function ensureSchema() {
   await pool.query(`ALTER TABLE posts ALTER COLUMN status SET DEFAULT 'idea'`).catch(() => {});
   await pool.query(`ALTER TABLE posts ADD COLUMN IF NOT EXISTS results_due_at TIMESTAMPTZ`).catch(() => {});
   await pool.query(`ALTER TABLE posts ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP`).catch(() => {});
+
+  // Feature 4: polymorphic comments on campaigns and posts
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS comments (
+      comment_id SERIAL PRIMARY KEY,
+      entity_type VARCHAR(20) NOT NULL CHECK (entity_type IN ('campaign', 'post')),
+      entity_id INTEGER NOT NULL,
+      author_id VARCHAR(255) NOT NULL,
+      author_name VARCHAR(255) NOT NULL,
+      body TEXT NOT NULL CHECK (length(body) > 0 AND length(body) <= 5000),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS comments_entity_idx ON comments (entity_type, entity_id, created_at)`).catch(() => {});
 }
 
 function extractJsonFromText(text) {
@@ -820,6 +837,66 @@ app.get('/api/dashboard', async (req, res) => {
     });
   } catch (err) {
     console.error('Dashboard query error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ===== COMMENTS =====
+
+app.get('/api/comments', async (req, res) => {
+  const { entity_type, entity_id } = req.query;
+  if (!entity_type || !entity_id) {
+    return res.status(400).json({ error: 'entity_type and entity_id are required' });
+  }
+  try {
+    const [rows] = await pool.query(
+      'SELECT * FROM comments WHERE entity_type = ? AND entity_id = ? ORDER BY created_at ASC',
+      [entity_type, parseInt(entity_id)]
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error('Error fetching comments:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/comments', async (req, res) => {
+  const { entity_type, entity_id, body } = req.body;
+  if (!entity_type || !entity_id || !body) {
+    return res.status(400).json({ error: 'entity_type, entity_id, and body are required' });
+  }
+  if (!['campaign', 'post'].includes(entity_type)) {
+    return res.status(400).json({ error: 'entity_type must be "campaign" or "post"' });
+  }
+  if (body.length === 0 || body.length > 5000) {
+    return res.status(400).json({ error: 'body must be between 1 and 5000 characters' });
+  }
+  try {
+    const [result] = await pool.query(
+      'INSERT INTO comments (entity_type, entity_id, author_id, author_name, body) VALUES (?, ?, ?, ?, ?)',
+      [entity_type, parseInt(entity_id), SOLO_USER.id, SOLO_USER.name, body]
+    );
+    const [rows] = await pool.query('SELECT * FROM comments WHERE comment_id = ?', [result.insertId]);
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error('Error creating comment:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/comments/:id', async (req, res) => {
+  try {
+    const [rows] = await pool.query('SELECT * FROM comments WHERE comment_id = ?', [req.params.id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Comment not found' });
+    }
+    if (rows[0].author_id !== SOLO_USER.id) {
+      return res.status(403).json({ error: 'You can only delete your own comments' });
+    }
+    await pool.query('DELETE FROM comments WHERE comment_id = ?', [req.params.id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error deleting comment:', err);
     res.status(500).json({ error: err.message });
   }
 });
