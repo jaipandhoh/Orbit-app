@@ -34,4 +34,4 @@ export const MODALS = {
   APPROVAL_REVIEW: 'approval-review',
 };
 
-export const DEFAULT_VIEW = VIEWS.CAMPAIGNS;
+export const DEFAULT_VIEW = VIEWS.DASHBOARD;

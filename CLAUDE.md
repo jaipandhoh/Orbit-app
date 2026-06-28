@@ -118,6 +118,11 @@ src/
       Tabs.jsx             # Horizontal text tabs with green underline
       FilterPill.jsx       # Outlined button with icon + chevron
       Select.jsx           # Native select with ds-* styling, matches Input
+    dashboard/             # Dashboard section components (Feature 3)
+      DueThisWeek.jsx      # Posts with scheduled_at in next 7 days
+      AwaitingReview.jsx   # Posts with status = 'in_review'
+      ResultsOverdue.jsx   # Published posts past results_due_at
+      ActiveCampaigns.jsx  # Active campaigns with post progress bars
   Views/
     HelpView.jsx           # Help screen
   pages/
@@ -128,7 +133,7 @@ src/
   constants/
     templates.js           # Onboarding template definitions
   # View components (flat in src/):
-  DashboardView.jsx        # Home dashboard
+  DashboardView.jsx        # Dashboard home (default view) — fetches /api/dashboard, renders 4 section components
   CampaignsView.jsx        # Campaign list
   CampaignDetail.jsx       # Single campaign detail
   PostsView.jsx            # Posts page: view-switcher wrapper (kanban/calendar/list), URL param sync
@@ -185,9 +190,11 @@ src/
 - **ensureSchema() migration pattern**: `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` is used as a lightweight migration mechanism. Revisit and replace with a proper migration tool (e.g. node-pg-migrate) before the schema grows significantly.
 - **App shell layout**: `SidebarNav` (240px dark sidebar) is rendered in `App.jsx`. Main content sits in a `ml-60` container. The old `TopNav` is no longer rendered but kept in the codebase.
 - **Redesigned page pattern** (reference: `CampaignsView.jsx`): Page header (title + description + search + CTA), toolbar row (Tabs + FilterPill), data table using `Table` primitives, pagination footer. Future page redesigns should follow this structure and import from `src/components/ui/`.
-- **Sidebar nav items**: Campaigns, Ideas, Posts, Contacts, Outreach, Coverage, Reports. Views for Ideas, Outreach, Coverage, Reports are stub constants in `routes.js` — pages not yet built. The old `VIEWS.CALENDAR` constant was removed; the Calendar sidebar entry was replaced by Posts.
+- **Sidebar nav items**: Dashboard, Campaigns, Ideas, Posts, Contacts, Outreach, Coverage, Reports. Dashboard is the first item (LayoutDashboard icon). Views for Ideas, Outreach, Coverage, Reports are stub constants in `routes.js` — pages not yet built.
 - **Posts page URL param sync**: `PostsView` reads `?view=kanban|calendar|list` from the URL on mount and defaults to `kanban`. Tab clicks update the URL via `history.replaceState()` so deep links (e.g. `/posts?view=calendar`) are honored. Domain-specific view components (`CalendarView`, `PostsKanbanView`, `PostsListView`) live flat in `src/`, not in `ui/`, since they contain business logic.
 - **Campaign filter on Posts page**: A `Select` dropdown in the toolbar filters posts by `campaign_id`. Default "All campaigns" shows everything. The `Select` primitive in `ui/` is a native `<select>` styled to match `Input`.
+- **Dashboard (Feature 3)**: Default landing page (`DEFAULT_VIEW = VIEWS.DASHBOARD` in `routes.js`). Fetches all data from `GET /api/dashboard` (single endpoint, 4 parallel queries server-side). Section components in `src/components/dashboard/` are self-contained — each receives its data array as a prop. DashboardView manages its own fetch lifecycle (loading/error/data) rather than relying on App.jsx centralized state. Legacy dashboard files (`DashboardWidgets.jsx`, `WeeklyFocusBanner.jsx`) are no longer imported but remain in the codebase.
+- **`posts.updated_at` column**: Added via `ensureSchema()`. Nullable, defaults to `CURRENT_TIMESTAMP`. Used for ordering in the "Awaiting review" dashboard query.
 
 ## Principles (from roadmap)
 

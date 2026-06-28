@@ -814,22 +814,15 @@ const AppContent = () => {
       <div className="ml-60 px-8 py-8 max-w-[1200px]">
         {currentView === VIEWS.DASHBOARD && (
           <DashboardView
-            transformedCampaigns={transformedCampaigns}
-            posts={posts}
-            requests={requests}
-            loading={loading}
-            approvals={approvals}
-            onNewCampaign={() => navigate(VIEWS.CAMPAIGN_PLANNING)}
-            onViewCampaigns={() => navigate(VIEWS.CAMPAIGNS)}
-            onViewCalendar={() => navigate(VIEWS.POSTS)}
-            onViewInsights={() => navigate(VIEWS.CAMPAIGNS)}
+            onPostClick={(post) => {
+              setEditingPost(post);
+              openModal(MODALS.POST_FORM);
+            }}
             onCampaignClick={(campaign) => {
               setSelectedCampaign(campaign);
               navigate(VIEWS.CAMPAIGN_DETAIL);
             }}
-            onViewInbox={() => navigate(VIEWS.INBOX)}
-            onViewBoard={() => navigate(VIEWS.BOARD)}
-            onReviewApproval={(a) => { setReviewingApproval(a); openModal(MODALS.APPROVAL_REVIEW); }}
+            onNavigate={navigate}
           />
         )}
         {currentView === VIEWS.ADMIN && (
