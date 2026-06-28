@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  LayoutDashboard,
   Folder,
   Lightbulb,
   Calendar,
@@ -15,6 +16,7 @@ import { Avatar } from './ui';
 import { useAuth } from '../context/AuthContext';
 
 const NAV_ITEMS = [
+  { id: VIEWS.DASHBOARD, icon: LayoutDashboard, label: 'Dashboard' },
   { id: VIEWS.CAMPAIGNS, icon: Folder, label: 'Campaigns' },
   { id: VIEWS.IDEAS, icon: Lightbulb, label: 'Ideas' },
   { id: VIEWS.POSTS, icon: Calendar, label: 'Posts' },

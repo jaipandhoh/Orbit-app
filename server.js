@@ -108,6 +108,7 @@ async function ensureSchema() {
   await pool.query(`ALTER TABLE posts ADD CONSTRAINT posts_status_check CHECK (status IN ('idea','approved','drafting','in_review','scheduled','published','reported'))`).catch(() => {});
   await pool.query(`ALTER TABLE posts ALTER COLUMN status SET DEFAULT 'idea'`).catch(() => {});
   await pool.query(`ALTER TABLE posts ADD COLUMN IF NOT EXISTS results_due_at TIMESTAMPTZ`).catch(() => {});
+  await pool.query(`ALTER TABLE posts ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP`).catch(() => {});
 }
 
 function extractJsonFromText(text) {
@@ -761,6 +762,65 @@ Respond to the latest message:`;
   } catch (error) {
     console.error("Error in campaign chat:", error);
     res.status(500).json({ error: error.message });
+  }
+});
+
+// ===== DASHBOARD =====
+
+app.get('/api/dashboard', async (req, res) => {
+  try {
+    const [dueThisWeek, awaitingReview, resultsOverdue, activeCampaigns] = await Promise.all([
+      // Section 1: Posts due this week (excludes already-published/reported)
+      pool.query(
+        `SELECT p.*, c.title AS campaign_title
+         FROM posts p
+         LEFT JOIN campaigns c ON p.campaign_id = c.campaign_id
+         WHERE p.scheduled_at >= CURRENT_DATE
+           AND p.scheduled_at < CURRENT_DATE + INTERVAL '7 days'
+           AND p.status NOT IN ('published', 'reported')
+         ORDER BY p.scheduled_at ASC`
+      ),
+      // Section 2: Posts awaiting review
+      pool.query(
+        `SELECT p.*, c.title AS campaign_title
+         FROM posts p
+         LEFT JOIN campaigns c ON p.campaign_id = c.campaign_id
+         WHERE p.status = 'in_review'
+         ORDER BY p.updated_at DESC NULLS LAST, p.created_at DESC`
+      ),
+      // Section 3: Results overdue (published 7+ days ago, not yet moved to reported)
+      pool.query(
+        `SELECT p.*, c.title AS campaign_title
+         FROM posts p
+         LEFT JOIN campaigns c ON p.campaign_id = c.campaign_id
+         WHERE p.status = 'published'
+           AND p.results_due_at IS NOT NULL
+           AND p.results_due_at < NOW()
+         ORDER BY p.results_due_at ASC`
+      ),
+      // Section 4: Active campaigns with post progress
+      pool.query(
+        `SELECT c.*,
+           COUNT(p.post_id) AS total_posts,
+           -- Reported is post-publish, counts as done for progress calculation
+           COUNT(p.post_id) FILTER (WHERE p.status IN ('published', 'reported')) AS published_posts
+         FROM campaigns c
+         LEFT JOIN posts p ON c.campaign_id = p.campaign_id
+         WHERE c.status = 'active'
+         GROUP BY c.campaign_id
+         ORDER BY c.created_at DESC`
+      ),
+    ]);
+
+    res.json({
+      dueThisWeek: dueThisWeek[0],
+      awaitingReview: awaitingReview[0],
+      resultsOverdue: resultsOverdue[0],
+      activeCampaigns: activeCampaigns[0],
+    });
+  } catch (err) {
+    console.error('Dashboard query error:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 
