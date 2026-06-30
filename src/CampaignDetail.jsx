@@ -1,6 +1,7 @@
 import React from 'react';
 import { ArrowLeft, Calendar, Target, TrendingUp, Pencil, Trash2, Plus, Trash, Edit2 } from 'lucide-react';
 import { getHealthColor, getStatusColor } from './utils';
+import CommentsThread from './components/CommentsThread';
 
 const CampaignDetail = ({
   campaign,
@@ -293,6 +294,11 @@ const CampaignDetail = ({
             })}
           </div>
         )}
+      </div>
+
+      {/* Comments */}
+      <div className="card p-6">
+        <CommentsThread entityType="campaign" entityId={campaignId} />
       </div>
     </div>
   );
